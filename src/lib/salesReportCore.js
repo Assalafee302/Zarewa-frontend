@@ -21,7 +21,7 @@ import {
   salesPaymentsReceivedRows,
 } from './liveAnalytics.js';
 import { abbreviateBankName } from './bankAbbreviation.js';
-import { buildSalesAccrual, creditApplicationReceipts } from './salesAccrualCore.js';
+import { bankLinkedMovementIds, buildSalesAccrual, creditApplicationReceipts, creditLineLeftOutOfCash } from './salesAccrualCore.js';
 
 export const SALES_CASH_TREASURY_TYPES = ['RECEIPT_IN', 'ADVANCE_IN', 'RECEIPT_REVERSAL_OUT'];
 
@@ -225,8 +225,8 @@ export function buildSalesReport(input = {}) {
   // --- (1) Cash received in period, from treasury ---------------------------------------------
   // Zero-amount ledger receipts are credit applications, not cash: their treasury lines stay out (round 2 A1).
   const creditReceipts = creditApplicationReceipts(ledgerEntries);
-  const isCreditLine = (t) =>
-    String(t.sourceKind || '') === 'LEDGER_RECEIPT' && creditReceipts.has(String(t.sourceId || '').trim());
+  const bankLinkedIds = bankLinkedMovementIds(input.bankRecon || input.bankReconciliation || []);
+  const isCreditLine = (t) => creditLineLeftOutOfCash(t, creditReceipts, bankLinkedIds);
   const periodTreasuryLines = treasuryMovements.filter(
     (t) => SALES_CASH_TREASURY_TYPES.includes(t.type) && inPeriod(t.postedAtISO)
   );

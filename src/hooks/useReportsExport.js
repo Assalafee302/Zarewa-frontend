@@ -131,6 +131,7 @@ function salesSplitForPeriod(src, startDate, endDate) {
     quotationLines: src.quotationLines,
     ledgerEntries: src.ledgerEntries,
     treasuryMovements: src.treasuryMovements,
+    bankRecon: src.bankReconciliation || [],
   });
   return { accrual, register, statement };
 }

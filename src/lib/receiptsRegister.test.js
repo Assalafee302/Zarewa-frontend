@@ -97,6 +97,21 @@ describe('receipts register — Kaduna Sep 2026 fixture', () => {
     expect(reg.lines.find((l) => l.ledgerEntryId === 'LE-KD-26-1569').remark).toBe('Full settlement (receipt)');
   });
 
+  it('a credit receipt treasury line stays in cash once a bank line names it (Farouq rule, 15 Oct)', () => {
+    const before = reg.lines.some((l) => l.treasuryMovementId === 'TM-KD-26-2530');
+    const linked = buildReceiptsRegister({
+      ...kd,
+      asAtISO: '2026-10-13T14:27:00Z',
+      bankRecon: [...kd.bankRecon, { id: 'BKR-TEST-1', bankDateISO: '2026-09-12', amountNgn: 7520, systemMatch: 'TM-KD-26-2530 · MP-TEST · 1:1', treasuryAccountId: 4 }],
+    });
+    expect(before).toBe(false);
+    expect(linked.lines.find((l) => l.treasuryMovementId === 'TM-KD-26-2530')).toMatchObject({ amountNgn: 7_520, statement: '✓ BKR-TEST-1' });
+    expect(linked.grandTotalNgn).toBe(reg.grandTotalNgn + 7_520);
+    const acc2 = buildSalesAccrual({ ...kd, bankRecon: [...kd.bankRecon, { id: 'BKR-TEST-1', bankDateISO: '2026-09-12', amountNgn: 7520, systemMatch: 'TM-KD-26-2530', treasuryAccountId: 4 }] });
+    expect(acc2.bridge.cashReceivedNgn).toBe(accrual.bridge.cashReceivedNgn + 7_520);
+    expect(acc2.bridge.differenceNgn).toBe(0);
+  });
+
   it('open month: section 2 reads "Not yet produced"', () => {
     const open = buildReceiptsRegister({ ...kd, asAtISO: '2026-09-20T10:00:00Z' });
     expect(open.sections[1].label).toBe('Not yet produced');
