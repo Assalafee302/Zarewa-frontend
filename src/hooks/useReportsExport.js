@@ -1445,18 +1445,29 @@ export function useReportsExport({
         showToast(first.error, { variant: 'error' });
         return;
       }
-      // The ERP stores no statement balance: ask for it per account (blank = leave "not entered").
-      const opening = [];
-      const closing = [];
-      for (const p of first.report.pages.filter((x) => x.hasBankStatement)) {
-        const o = window.prompt(`Bank statement balance at the START of ${startDate} for ${accountTitle(p.account)} (blank if not known)`, '');
-        if (o != null && o.trim() !== '' && Number.isFinite(Number(o.replace(/,/g, '')))) opening.push(`${p.account.id}:${Number(o.replace(/,/g, ''))}`);
-        const c = window.prompt(`Bank statement balance at the END of ${endDate} for ${accountTitle(p.account)} (optional check)`, '');
-        if (c != null && c.trim() !== '' && Number.isFinite(Number(c.replace(/,/g, '')))) closing.push(`${p.account.id}:${Number(c.replace(/,/g, ''))}`);
+      // Statement balances are stored per account per month; ask only for the ones not yet entered and save them
+      // (entered by / at recorded by the server), then reload.
+      const periodKey = first.report.periodKey || '';
+      const parse = (v) => {
+        const n = Number(String(v ?? '').replace(/,/g, '').trim());
+        return String(v ?? '').trim() !== '' && Number.isFinite(n) ? n : null;
+      };
+      let saved = 0;
+      for (const p of first.report.pages.filter((x) => x.hasBankStatement && !x.statementBalance)) {
+        if (!periodKey) break;
+        const o = parse(window.prompt(`Statement OPENING balance on ${startDate} for ${accountTitle(p.account)} (blank to skip)`, ''));
+        if (o == null) continue;
+        const c = parse(window.prompt(`Statement CLOSING balance on ${endDate} for ${accountTitle(p.account)}`, ''));
+        if (c == null) continue;
+        const put = await apiFetch('/api/treasury/statement-balances', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ treasuryAccountId: p.account.id, periodKey, openingNgn: o, closingNgn: c }),
+        });
+        if (put.ok && put.data?.ok) saved += 1;
+        else showToast(put.data?.error || 'Could not save the statement balance.', { variant: 'error' });
       }
-      const res = opening.length || closing.length
-        ? await fetchBankReconStatementReport(apiFetch, startDate, endDate, { bankOpening: opening.join(','), bankClosing: closing.join(',') })
-        : first;
+      const res = saved ? await fetchBankReconStatementReport(apiFetch, startDate, endDate) : first;
       if (!res.ok) {
         showToast(res.error, { variant: 'error' });
         return;
