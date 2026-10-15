@@ -21,7 +21,7 @@ const ids = (lines) => lines.map((l) => l.expenseID.slice(-4)).sort();
 
 describe('expenses report v2 — Kaduna Sep 2026 fixture', () => {
   it('ERP view: 116 lines, ₦14,853,736, by ERP category', () => {
-    expect(sep.totals).toEqual({ lineCount: 116, amountNgn: 14_853_736 });
+    expect(sep.totals).toEqual({ lineCount: 116, amountNgn: 14_853_736, erpIncludingBalancingNgn: 14_853_736 });
     expect(erp).toMatchObject({
       Maintenance: 3_640_350,
       'Admin salary': 1_868_700,
@@ -161,5 +161,59 @@ describe('expense reclassification rules (synthetic)', () => {
   it('first matching rule wins: a refund mentioning a forklift is a refund', () => {
     const r = run([line('E1', 'Office expenses', 'refund for fork lift hire')]);
     expect(r.rows[0].reclassRule).toBe('R1');
+  });
+});
+
+describe('expenses report — round 2 (A2 balancing entry, A4 payment, R1 refunds)', () => {
+  const sales = JSON.parse(
+    fs.readFileSync(new URL('./__fixtures__/kd-2026-09/salesReportSource.json', import.meta.url), 'utf8')
+  );
+  const aug = buildExpensesReport({ ...kd, startDate: '2026-08-01', endDate: '2026-08-31' });
+
+  it('A2: PREQ-KD-26-0330 "Account balnceing" is outside every category total, in its own box', () => {
+    expect(aug.balancingEntries.rows.map((r) => [r.expenseID, r.requestID, r.amountNgn])).toEqual([
+      ['EXP-KD-26-0404', 'PREQ-KD-26-0330', 32_811_891],
+    ]);
+    expect(aug.rows.some((r) => r.expenseID === 'EXP-KD-26-0404')).toBe(false);
+    expect(aug.erpByCategory.reduce((s, c) => s + c.amountNgn, 0)).toBe(aug.totals.amountNgn);
+    expect(aug.totals.erpIncludingBalancingNgn - aug.totals.amountNgn).toBe(32_811_891);
+    expect(aug.paymentRequestsPaid.unexplainedNgn).toBe(0);
+    const p = expensesReportPrintPayload(aug, { title: 'Expenses' });
+    const box = p.appendixSections[0];
+    expect(box.title).toBe('Balancing entry — not an expense');
+    expect(box.rows[0]).toMatchObject({ ref: 'EXP-KD-26-0404', detail: 'PREQ-KD-26-0330' });
+    expect(p.rows.some((r) => r.ref === 'EXP-KD-26-0404')).toBe(false);
+  });
+
+  it('A4: each line shows the treasury line that paid it, the account, paid date and BKR id', () => {
+    const r = buildExpensesReport({
+      ...kd,
+      treasuryMovements: [...kd.treasuryMovements, ...sales.treasuryMovements.filter((t) => t.type !== 'TRANSPORT_PAYMENT')],
+      bankRecon: sales.bankRecon,
+    });
+    const row = r.rows.find((x) => x.expenseID === 'EXP-KD-26-0290');
+    expect(row).toMatchObject({
+      requestID: 'PREQ-KD-26-0219',
+      dateISO: '2026-09-01',
+      paidDateISO: '2026-09-04',
+      paidFrom: 'Zarewa Aluminum & Plastics Ltd (Moniepoint)',
+      treasuryMovementIds: ['TM-KD-26-2427'],
+      bankLineIds: ['BKR-KD-26-0230'],
+    });
+    expect(r.rows.filter((x) => x.treasuryMovementIds.length)).toHaveLength(113);
+    expect(r.totals.amountNgn).toBe(14_853_736);
+    const p = expensesReportPrintPayload(r, { title: 'Expenses' });
+    expect(p.columns.map((c) => c.label)).toEqual(expect.arrayContaining(['Incurred', 'Paid', 'Paid from', 'Paid by', 'Treasury line', 'Bank line']));
+    expect(p.rows.find((x) => x.ref === 'EXP-KD-26-0290')).toMatchObject({ treasury: 'TM-KD-26-2427', bankLine: 'BKR-KD-26-0230' });
+  });
+
+  it('R1: refunds are one line pointing to the Refund report, never listed', () => {
+    const refundRows = [{ _amountNgn: 1_000 }, { _amountNgn: 2_500 }];
+    const p = expensesReportPrintPayload(sep, { title: 'Expenses', refundRows });
+    expect(p.rows.some((r) => /refund/i.test(String(r.groupKey)) && !/^Expense/.test(String(r.groupKey)))).toBe(false);
+    expect(p.summaryLines.find((l) => l.label === 'Refunds paid in period — see Refund report').value).toMatch(/3,500/);
+    const sheets = expensesReportExcelSheets(sep, { refundRows });
+    expect(sheets.map((s) => s.name)).not.toContain('Refunds_paid');
+    expect(sheets[0].rows.find((x) => /Refund report/.test(x.item)).amountNgn).toBe(3_500);
   });
 });

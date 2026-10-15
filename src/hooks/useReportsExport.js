@@ -390,7 +390,7 @@ export function useReportsExport({
         }));
         if (!reportsLegacyMode()) {
           // v2: real request status, Check category, ERP vs book view and every reclassification listed.
-          const report = buildExpensesReport({ expenses, paymentRequests, treasuryMovements, startDate, endDate });
+          const report = buildExpensesReport({ expenses, paymentRequests, treasuryMovements, bankRecon: bankReconciliation, startDate, endDate });
           return expensesReportPrintPayload(report, {
             title: PACK_EXPENSES_REFUNDS,
             refundRows: refundPrintRows,
@@ -873,7 +873,7 @@ export function useReportsExport({
     }
 
     if (name === PACK_EXPENSES_REFUNDS && fmt === 'Excel' && !reportsLegacyMode()) {
-      const report = buildExpensesReport({ expenses, paymentRequests, treasuryMovements, startDate, endDate });
+      const report = buildExpensesReport({ expenses, paymentRequests, treasuryMovements, bankRecon: bankReconciliation, startDate, endDate });
       const sheets = expensesReportExcelSheets(report, {
         refundRows: refundsPaidInPeriodRows(refunds, startDate, endDate),
         companyCutRows: companyCutWithdrawalsInPeriodRows(treasuryMovements, startDate, endDate),

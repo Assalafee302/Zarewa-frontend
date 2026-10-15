@@ -20,6 +20,12 @@
  *   was posted the same day).
  * - Payroll: Admin salary lines described as salary / wages are the payroll gross; anything else on Admin salary
  *   is flagged. An optional payroll split (factory / branch / HQ share) is shown and checked against the gross.
+ * - Balancing entries (round 2, A2): a line described as an account balancing / plug entry (incl. misspellings
+ *   "balnceing", "balanceing") is not an expense. It is left out of every category total (ERP and book), listed in
+ *   its own box, and added back only where the ERP grand total and the payment-request bridge need it.
+ * - Payment (round 2, A4): each line carries the treasury line(s) that paid it (PAYMENT_REQUEST_OUT on the
+ *   request, or EXPENSE on the expense), the account paid from, the paid date (vs the incurred date), who posted
+ *   it and the bank-statement line (BKR id) that names the treasury line.
  */
 import { filterExpensesInRange } from './liveAnalytics.js';
 import { isCapexExpenseCategory } from '../shared/expenseCategories.js';
@@ -84,6 +90,11 @@ export const EXPENSE_RECLASS_RULES = [
   },
 ];
 
+/** Description of a balancing / plug entry (not an expense). */
+export function isBalancingEntryDescription(text) {
+  return /\bbal[a-z]*nc(?:e)?ing\b|\bplug\b|\bbalancing\s+entry\b/i.test(String(text || ''));
+}
+
 const num = (v) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
@@ -117,6 +128,42 @@ export function buildExpensesReport(input = {}) {
   const { expenses = [], paymentRequests = [], treasuryMovements = [], startDate = '', endDate = '', payrollSplit = null } = input;
   const inPeriod = (iso) => Boolean(iso) && iso >= startDate && iso <= endDate;
 
+  // Treasury lines that paid an expense, and the bank line that names each of them.
+  const bankLineByMovement = new Map();
+  for (const b of input.bankRecon || input.bankReconciliation || []) {
+    for (const hit of String(b?.systemMatch || '').matchAll(/TM-[A-Z]{2,4}-\d{2}-\d+/gi)) {
+      const id = hit[0].toUpperCase();
+      if (!bankLineByMovement.has(id)) bankLineByMovement.set(id, String(b.id || ''));
+    }
+  }
+  const payoutsBySource = new Map();
+  for (const t of treasuryMovements) {
+    if (t.type !== 'PAYMENT_REQUEST_OUT' && t.type !== 'EXPENSE') continue;
+    const key = `${t.type}|${String(t.sourceId || '').trim()}`;
+    const list = payoutsBySource.get(key) || [];
+    list.push(t);
+    payoutsBySource.set(key, list);
+  }
+  const accountLabel = (t) => {
+    const name = String(t.accountName || '').trim();
+    const bank = String(t.bankName || '').trim();
+    return bank && name ? `${name} (${bank})` : name || bank || String(t.treasuryAccountId ?? '');
+  };
+  const paymentFor = (expenseID, requestID) => {
+    const lines = [
+      ...(requestID ? payoutsBySource.get(`PAYMENT_REQUEST_OUT|${requestID}`) || [] : []),
+      ...(payoutsBySource.get(`EXPENSE|${expenseID}`) || []),
+    ].sort((a, b) => day(a.postedAtISO).localeCompare(day(b.postedAtISO)) || String(a.id).localeCompare(String(b.id)));
+    return {
+      treasuryMovementIds: lines.map((t) => String(t.id)),
+      paidFrom: [...new Set(lines.map(accountLabel).filter(Boolean))].join(' + '),
+      paidDateISO: lines.length ? day(lines[0].postedAtISO) : '',
+      paidBy: [...new Set(lines.map((t) => String(t.createdByName || t.createdBy || '').trim()).filter(Boolean))].join(', '),
+      bankLineIds: [...new Set(lines.map((t) => bankLineByMovement.get(String(t.id).toUpperCase())).filter(Boolean))],
+      treasuryPaidNgn: -lines.reduce((s, t) => s + ngn(t.amountNgn), 0),
+    };
+  };
+
   const requestByExpense = new Map();
   for (const r of paymentRequests) {
     const id = String(r.expenseID || '').trim();
@@ -145,7 +192,16 @@ export function buildExpensesReport(input = {}) {
       paidAmountNgn: req ? ngn(req.paidAmountNgn) : null,
       paidAtISO: req ? day(req.paidAtISO) : '',
       payeeStaff: String(req?.staffDisplayName || '').trim(),
+      ...paymentFor(id, String(req?.requestID || ex.reference || '').trim()),
     };
+    row.balancingEntry = isBalancingEntryDescription(row.description) || isBalancingEntryDescription(ex.expenseType);
+    if (row.balancingEntry) {
+      row.bookCategory = null;
+      row.reclassRule = '';
+      row.reclassLabel = '';
+      rows.push(row);
+      continue;
+    }
     const cancelled = row.status === 'Cancelled';
     const rule = cancelled ? null : EXPENSE_RECLASS_RULES.find((r) => r.test(row));
     // A cancelled request is not an expense: no book category (left out of the book view).
@@ -155,6 +211,8 @@ export function buildExpensesReport(input = {}) {
     rows.push(row);
   }
   rows.sort((a, b) => a.category.localeCompare(b.category) || a.dateISO.localeCompare(b.dateISO) || a.expenseID.localeCompare(b.expenseID));
+  const allRows = rows;
+  const balancingRows = allRows.filter((r) => r.balancingEntry);
 
   // --- Carriage: PO transport paid in the period, and expense lines that duplicate it -----------------
   const poTransport = treasuryMovements
@@ -169,7 +227,8 @@ export function buildExpensesReport(input = {}) {
     }));
   const usedTransport = new Set();
   const carriageOverlap = [];
-  for (const row of rows) {
+  const expenseRows = allRows.filter((r) => !r.balancingEntry);
+  for (const row of expenseRows) {
     if (!/^carriage/i.test(row.category)) continue;
     const hit = poTransport.find(
       (t) =>
@@ -196,7 +255,7 @@ export function buildExpensesReport(input = {}) {
   // --- Views -----------------------------------------------------------------------------------
   const byCategory = (key) => {
     const m = new Map();
-    for (const r of rows) {
+    for (const r of expenseRows) {
       if (r[key] == null) continue;
       m.set(r[key], (m.get(r[key]) || 0) + r.amountNgn);
     }
@@ -216,7 +275,7 @@ export function buildExpensesReport(input = {}) {
   const bookList = toList(book);
 
   const reclassifications = EXPENSE_RECLASS_RULES.map((rule) => {
-    const lines = rows.filter((r) => r.reclassRule === rule.id);
+    const lines = expenseRows.filter((r) => r.reclassRule === rule.id);
     return {
       rule: rule.id,
       label: rule.label,
@@ -228,7 +287,7 @@ export function buildExpensesReport(input = {}) {
   }).filter((r) => r.lines.length);
 
   // --- Payroll (Admin salary) -------------------------------------------------------------------
-  const adminSalary = rows.filter((r) => /^admin salary/i.test(r.category));
+  const adminSalary = expenseRows.filter((r) => /^admin salary/i.test(r.category));
   const payrollLines = adminSalary.filter((r) => /salar|wage/i.test(r.description));
   const payrollGrossNgn = sumBy(payrollLines, 'amountNgn');
   const splitTotal = payrollSplit ? payrollSplit.reduce((s, g) => s + ngn(g.grossNgn), 0) : null;
@@ -248,24 +307,25 @@ export function buildExpensesReport(input = {}) {
   // --- Payment requests paid in the period, and the bridge to expenses by date --------------------
   const paidInPeriod = paymentRequests.filter((r) => num(r.paidAmountNgn) > 0 && inPeriod(day(r.paidAtISO)));
   const paidInPeriodIds = new Set(paidInPeriod.map((r) => String(r.expenseID || '').trim()));
-  const rowIds = new Set(rows.map((r) => r.expenseID));
+  const rowIds = new Set(allRows.map((r) => r.expenseID));
+  const balancingPaidIds = new Set(balancingRows.filter((r) => paidInPeriodIds.has(r.expenseID)).map((r) => r.expenseID));
   const bridgeLines = [
-    { item: 'Expenses dated in the period (ERP)', amountNgn: sumBy(rows, 'amountNgn') },
+    { item: 'Expenses dated in the period (ERP, excluding balancing entries)', amountNgn: sumBy(expenseRows, 'amountNgn') },
     {
       item: 'Less: no payment request (posted directly, e.g. bank charges)',
-      amountNgn: -sumBy(rows.filter((r) => r.status === 'No payment request'), 'amountNgn'),
+      amountNgn: -sumBy(expenseRows.filter((r) => r.status === 'No payment request'), 'amountNgn'),
     },
-    { item: 'Less: payment request cancelled', amountNgn: -sumBy(rows.filter((r) => r.status === 'Cancelled'), 'amountNgn') },
+    { item: 'Less: payment request cancelled', amountNgn: -sumBy(expenseRows.filter((r) => r.status === 'Cancelled'), 'amountNgn') },
     {
       item: 'Less: not paid in the period (paid earlier / later / still pending)',
       amountNgn: -sumBy(
-        rows.filter((r) => !['No payment request', 'Cancelled'].includes(r.status) && !paidInPeriodIds.has(r.expenseID)),
+        expenseRows.filter((r) => !['No payment request', 'Cancelled'].includes(r.status) && !paidInPeriodIds.has(r.expenseID)),
         'amountNgn'
       ),
     },
     {
       item: 'Less: paid short of the expense amount',
-      amountNgn: -rows
+      amountNgn: -expenseRows
         .filter((r) => paidInPeriodIds.has(r.expenseID))
         .reduce((s, r) => s + Math.max(0, r.amountNgn - ngn(r.paidAmountNgn)), 0),
     },
@@ -273,12 +333,16 @@ export function buildExpensesReport(input = {}) {
       item: 'Add: paid in the period for expenses dated outside it',
       amountNgn: sumBy(paidInPeriod.filter((r) => !rowIds.has(String(r.expenseID || '').trim())), 'paidAmountNgn'),
     },
+    {
+      item: 'Add: balancing entries paid in the period (not an expense)',
+      amountNgn: sumBy(paidInPeriod.filter((r) => balancingPaidIds.has(String(r.expenseID || '').trim())), 'paidAmountNgn'),
+    },
   ];
   const paidInPeriodNgn = sumBy(paidInPeriod, 'paidAmountNgn');
   const bridgeTotal = bridgeLines.reduce((s, l) => s + l.amountNgn, 0);
 
   const exceptions = [
-    ...rows.filter((r) => r.reclassRule).map((r) => ({ kind: 'Check category', expenseID: r.expenseID, amountNgn: r.amountNgn, note: r.reclassLabel })),
+    ...expenseRows.filter((r) => r.reclassRule).map((r) => ({ kind: 'Check category', expenseID: r.expenseID, amountNgn: r.amountNgn, note: r.reclassLabel })),
     ...carriageOverlap.map((o) => ({
       kind: 'Possible double count with PO transport',
       expenseID: o.expenseID,
@@ -291,7 +355,7 @@ export function buildExpensesReport(input = {}) {
       amountNgn: p.amountNgn,
       note: p.description,
     })),
-    ...rows
+    ...expenseRows
       .filter((r) => r.status === 'Cancelled')
       .map((r) => ({
         kind: 'Cancelled payment request — not an expense (left out of the book view)',
@@ -304,8 +368,13 @@ export function buildExpensesReport(input = {}) {
   return {
     startDate,
     endDate,
-    rows,
-    totals: { lineCount: rows.length, amountNgn: sumBy(rows, 'amountNgn') },
+    rows: expenseRows,
+    totals: {
+      lineCount: expenseRows.length,
+      amountNgn: sumBy(expenseRows, 'amountNgn'),
+      erpIncludingBalancingNgn: sumBy(allRows, 'amountNgn'),
+    },
+    balancingEntries: { rows: balancingRows, amountNgn: sumBy(balancingRows, 'amountNgn') },
     erpByCategory: toList(erp),
     bookByCategory: bookList,
     bookExpenseTotalNgn: bookList.filter((c) => !nonExpense.has(c.category)).reduce((s, c) => s + c.amountNgn, 0),
@@ -319,6 +388,6 @@ export function buildExpensesReport(input = {}) {
       unexplainedNgn: paidInPeriodNgn - bridgeTotal,
     },
     exceptions,
-    warningCount: rows.filter((r) => r.reclassRule).length,
+    warningCount: expenseRows.filter((r) => r.reclassRule).length,
   };
 }

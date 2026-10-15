@@ -2,10 +2,15 @@
  * Print / Excel layout for the expenses report v2 (see `expensesReportCore.js`).
  */
 import { formatNgn } from './formatNgn';
-import { displayDocNumber, displayTxnDateShort } from './reportDisplayFormat';
+import { displayTxnDateShort } from './reportDisplayFormat';
 
 const signedNgn = (n) => (Number(n) < 0 ? `(${formatNgn(Math.abs(Number(n)))})` : formatNgn(Number(n) || 0));
-const docNo = (v) => displayDocNumber(v) || v || '—';
+/** Full ids on every line (round 2, L1/L7). */
+const docNo = (v) => String(v ?? '').trim() || '—';
+const sumAmount = (rows) => rows.reduce((s, r) => s + (Number(r._amountNgn ?? r.amountNgn) || 0), 0);
+
+export const EXPENSES_BALANCING_TITLE = 'Balancing entry — not an expense';
+export const EXPENSES_REFUNDS_LINE = 'Refunds paid in period — see Refund report';
 const shortDate = (v) => (v ? displayTxnDateShort(v) || v : '—');
 
 /** ERP vs book amount per category, every category that appears in either view. */
@@ -22,13 +27,24 @@ export function expensesCategoryComparison(report) {
     .sort((a, b) => b.bookNgn - a.bookNgn || a.category.localeCompare(b.category));
 }
 
+/** Payment columns for one expense line (round 2, A4). */
+function paymentCells(r) {
+  return {
+    paidDate: r.paidDateISO ? shortDate(r.paidDateISO) : r.paidAtISO ? shortDate(r.paidAtISO) : '',
+    paidFrom: r.paidFrom || '',
+    paidBy: r.paidBy || '',
+    treasury: (r.treasuryMovementIds || []).join(', '),
+    bankLine: (r.bankLineIds || []).join(', '),
+  };
+}
+
 /**
  * @param {ReturnType<import('./expensesReportCore').buildExpensesReport>} report
- * @param {{ title: string, refundRows?: object[], companyCutRows?: object[] }} opts — print rows already shaped
- *   like the expense rows (groupKey, date, ref, party, detail, amount, status, _amountNgn)
+ * @param {{ title: string, refundRows?: object[], companyCutRows?: object[] }} opts — refund / company-cut rows are
+ *   only totalled: their lines belong to the Refund report (round 2, R1)
  */
 export function expensesReportPrintPayload(report, opts) {
-  const expenseRows = report.rows.map((r) => ({
+  const rows = report.rows.map((r) => ({
     groupKey: `Expense · ${r.category}`,
     section: 'Expense',
     date: shortDate(r.dateISO),
@@ -37,27 +53,31 @@ export function expensesReportPrintPayload(report, opts) {
     detail: r.requestID ? docNo(r.requestID) : '—',
     amount: formatNgn(r.amountNgn),
     status: r.status,
+    ...paymentCells(r),
     check: [r.reclassLabel, r.carriageOverlap ? `Possible double count: ${r.carriageOverlap}` : ''].filter(Boolean).join(' · '),
     _amountNgn: r.amountNgn,
   }));
-  const refundRows = opts.refundRows || [];
-  const companyCutRows = opts.companyCutRows || [];
-  const rows = [...expenseRows, ...refundRows, ...companyCutRows];
-  const refundTotal = refundRows.reduce((s, r) => s + (Number(r._amountNgn) || 0), 0);
-  const cutTotal = companyCutRows.reduce((s, r) => s + (Number(r._amountNgn) || 0), 0);
+  const refundTotal = sumAmount(opts.refundRows || []);
+  const cutTotal = sumAmount(opts.companyCutRows || []);
   const pr = report.paymentRequestsPaid;
+  const bal = report.balancingEntries || { rows: [], amountNgn: 0 };
 
   return {
     title: opts.title,
     readable: true,
     columns: [
-      { key: 'date', label: 'Date', width: '8%' },
-      { key: 'ref', label: 'Ref', width: '8%' },
-      { key: 'party', label: 'Description / Customer', width: '28%', wrap: true },
-      { key: 'detail', label: 'Request / Quotation', width: '11%', wrap: true },
-      { key: 'amount', label: 'Amount', width: '12%', align: 'right', minWidth: '6.5rem' },
-      { key: 'status', label: 'Status', width: '10%' },
-      { key: 'check', label: 'Check category', width: '23%', wrap: true },
+      { key: 'date', label: 'Incurred', width: '6%' },
+      { key: 'ref', label: 'Expense', width: '8%' },
+      { key: 'party', label: 'Description', width: '16%', wrap: true },
+      { key: 'detail', label: 'Request', width: '8%' },
+      { key: 'amount', label: 'Amount', width: '8%', align: 'right', minWidth: '6.5rem' },
+      { key: 'status', label: 'Status', width: '7%' },
+      { key: 'paidDate', label: 'Paid', width: '6%' },
+      { key: 'paidFrom', label: 'Paid from', width: '11%', wrap: true },
+      { key: 'paidBy', label: 'Paid by', width: '7%' },
+      { key: 'treasury', label: 'Treasury line', width: '8%' },
+      { key: 'bankLine', label: 'Bank line', width: '7%' },
+      { key: 'check', label: 'Check category', width: '8%', wrap: true },
     ],
     rows,
     grouping: {
@@ -70,14 +90,48 @@ export function expensesReportPrintPayload(report, opts) {
     },
     summaryLines: [
       { label: 'Expense lines', value: String(report.totals.lineCount) },
-      { label: 'Expenses total (ERP categories)', value: formatNgn(report.totals.amountNgn) },
+      { label: 'Expenses total (ERP categories, balancing entries excluded)', value: formatNgn(report.totals.amountNgn) },
       { label: 'Book expense total (after reclassification; cancelled requests left out)', value: formatNgn(report.bookExpenseTotalNgn) },
+      ...(bal.rows.length
+        ? [{ label: `${EXPENSES_BALANCING_TITLE} (outside all totals)`, value: `${formatNgn(bal.amountNgn)} · ${bal.rows.map((r) => r.requestID || r.expenseID).join(', ')}` }]
+        : []),
       { label: 'Lines to check / reclassified', value: String(report.warningCount) },
       { label: 'Payment requests paid in period', value: `${formatNgn(pr.amountNgn)} · ${pr.count} request(s)` },
-      { label: 'Refunds paid', value: formatNgn(refundTotal) },
-      { label: 'Company cut withdrawn', value: formatNgn(cutTotal) },
+      { label: EXPENSES_REFUNDS_LINE, value: formatNgn(refundTotal) },
+      { label: 'Company cut withdrawn — see Refund report', value: formatNgn(cutTotal) },
     ],
     appendixSections: [
+      ...(bal.rows.length
+        ? [{
+            title: EXPENSES_BALANCING_TITLE,
+            boxed: true,
+            columns: [
+              { key: 'date', label: 'Date', width: '8%' },
+              { key: 'ref', label: 'Expense', width: '11%' },
+              { key: 'detail', label: 'Request', width: '11%' },
+              { key: 'category', label: 'ERP category', width: '11%' },
+              { key: 'party', label: 'Description', width: '17%', wrap: true },
+              { key: 'amount', label: 'Expense ₦', width: '10%', align: 'right' },
+              { key: 'paid', label: 'Paid ₦', width: '10%', align: 'right' },
+              { key: 'treasury', label: 'Treasury line', width: '11%' },
+              { key: 'bankLine', label: 'Bank line', width: '11%' },
+            ],
+            rows: [
+              ...bal.rows.map((r) => ({
+                date: shortDate(r.dateISO),
+                ref: docNo(r.expenseID),
+                detail: docNo(r.requestID),
+                category: r.category,
+                party: r.description,
+                amount: formatNgn(r.amountNgn),
+                paid: r.paidAmountNgn == null ? '' : formatNgn(r.paidAmountNgn),
+                treasury: (r.treasuryMovementIds || []).join(', '),
+                bankLine: (r.bankLineIds || []).join(', '),
+              })),
+              { date: '', ref: '', detail: '', category: '', party: 'Total (not in any category total)', amount: formatNgn(bal.amountNgn), paid: '', treasury: '', bankLine: '' },
+            ],
+          }]
+        : []),
       {
         title: 'Expenses by category — ERP vs book (after reclassification)',
         columns: [
@@ -94,6 +148,12 @@ export function expensesReportPrintPayload(report, opts) {
             diff: c.differenceNgn ? signedNgn(c.differenceNgn) : '',
           })),
           { category: 'Total', erp: formatNgn(report.totals.amountNgn), book: formatNgn(report.bookByCategory.reduce((s, c) => s + c.amountNgn, 0)), diff: '' },
+          ...(bal.rows.length
+            ? [
+                { category: `${EXPENSES_BALANCING_TITLE} (outside the totals)`, erp: formatNgn(bal.amountNgn), book: '', diff: '' },
+                { category: 'ERP grand total incl. balancing entries', erp: formatNgn(report.totals.erpIncludingBalancingNgn), book: '', diff: '' },
+              ]
+            : []),
         ],
       },
       {
@@ -168,9 +228,24 @@ export function expensesReportPrintPayload(report, opts) {
   };
 }
 
-/** Excel sheets for the expenses report v2 (amount columns safe to SUM). */
+/**
+ * Excel sheets for the expenses report v2 (amount columns safe to SUM). Refund / company-cut lines belong to the
+ * Refund report (round 2, R1): only their totals appear, on the Summary sheet.
+ */
 export function expensesReportExcelSheets(report, { refundRows = [], companyCutRows = [] } = {}) {
+  const bal = report.balancingEntries || { rows: [], amountNgn: 0 };
   return [
+    {
+      name: 'Summary',
+      rows: [
+        { item: 'Expenses total (ERP categories, balancing entries excluded)', amountNgn: report.totals.amountNgn },
+        { item: 'Book expense total', amountNgn: report.bookExpenseTotalNgn },
+        { item: `${EXPENSES_BALANCING_TITLE} (outside all totals)`, amountNgn: bal.amountNgn },
+        { item: 'ERP grand total incl. balancing entries', amountNgn: report.totals.erpIncludingBalancingNgn ?? report.totals.amountNgn },
+        { item: EXPENSES_REFUNDS_LINE, amountNgn: sumAmount(refundRows) },
+        { item: 'Company cut withdrawn — see Refund report', amountNgn: sumAmount(companyCutRows) },
+      ],
+    },
     {
       name: 'Expenses',
       rows: report.rows.map((r) => ({
@@ -184,8 +259,21 @@ export function expensesReportExcelSheets(report, { refundRows = [], companyCutR
         requestID: r.requestID,
         paidAmountNgn: r.paidAmountNgn ?? '',
         paidAtISO: r.paidAtISO,
+        paidDateISO: r.paidDateISO || '',
+        paidFrom: r.paidFrom || '',
+        paidBy: r.paidBy || '',
+        treasuryMovementIds: (r.treasuryMovementIds || []).join(', '),
+        bankLineIds: (r.bankLineIds || []).join(', '),
         reclassRule: r.reclassLabel,
         carriageOverlap: r.carriageOverlap || '',
+      })),
+    },
+    {
+      name: 'Balancing_entries',
+      rows: bal.rows.map((r) => ({
+        expenseID: r.expenseID, requestID: r.requestID, dateISO: r.dateISO, erpCategory: r.category, description: r.description,
+        amountNgn: r.amountNgn, paidAmountNgn: r.paidAmountNgn ?? '', treasuryMovementIds: (r.treasuryMovementIds || []).join(', '),
+        bankLineIds: (r.bankLineIds || []).join(', '),
       })),
     },
     { name: 'ERP_vs_book', rows: expensesCategoryComparison(report) },
@@ -213,7 +301,5 @@ export function expensesReportExcelSheets(report, { refundRows = [], companyCutR
     },
     { name: 'Payment_requests_bridge', rows: report.paymentRequestsPaid.bridge },
     { name: 'Exceptions', rows: report.exceptions },
-    ...(refundRows.length ? [{ name: 'Refunds_paid', rows: refundRows }] : []),
-    ...(companyCutRows.length ? [{ name: 'Company_cut', rows: companyCutRows }] : []),
   ];
 }
