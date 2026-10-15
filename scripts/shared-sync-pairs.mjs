@@ -106,6 +106,8 @@ export const SHARED_SYNC_PAIRS = [
   ['shared/lib/standardReportsPurchases.js', 'src/shared/lib/standardReportsPurchases.js'],
   ['shared/lib/purchaseReportCore.js', 'src/shared/lib/purchaseReportCore.js'],
   ['shared/lib/coilPurchaseUnit.js', 'src/shared/lib/coilPurchaseUnit.js'],
+  ['shared/lib/coilRegisterCore.js', 'src/shared/lib/coilRegisterCore.js'],
+  ['shared/lib/monthEndStockReportCore.js', 'src/shared/lib/monthEndStockReportCore.js'],
   ['shared/lib/standardReportsStock.js', 'src/shared/lib/standardReportsStock.js'],
   ['shared/customerPhoneKey.js', 'src/shared/customerPhoneKey.js'],
   ['shared/supplierIdentityKey.js', 'src/shared/supplierIdentityKey.js'],

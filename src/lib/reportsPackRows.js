@@ -16,7 +16,7 @@ import { procurementKindFromPo } from './procurementPoKind';
 import { reportsLegacyQuerySuffix } from './reportsLegacyMode';
 import { coilRegisterExcelSheets } from './coilRegisterExcel';
 import * as XLSX from 'xlsx';
-function rowsPeriodCostsInventoryPack(expenses, paymentRequests, coilLots, movements, startDate, endDate) {
+function rowsPeriodCostsInventoryPack(expenses, paymentRequests, coilLots, movements, startDate, endDate, purchaseOrders = []) {
   const rows = [];
   paidExpensesInRange(expenses, paymentRequests, startDate, endDate).forEach((e) => {
     rows.push({
@@ -34,7 +34,7 @@ function rowsPeriodCostsInventoryPack(expenses, paymentRequests, coilLots, movem
   accruedApprovedPayablesRows(paymentRequests, startDate, endDate).forEach((r) => {
     rows.push({ packSection: 'Accruals', ...r });
   });
-  coilInventoryValuationRows(coilLots).forEach((r) => {
+  coilInventoryValuationRows(coilLots, purchaseOrders).forEach((r) => {
     rows.push({ packSection: 'Valuation', ...r });
   });
   cogsMovementRows(movements, startDate, endDate).forEach((r) => {

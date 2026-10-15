@@ -40,12 +40,14 @@ import {
   PACK_MATERIAL_EXCEPTIONS,
   PACK_COIL_STOCK_TIEOUT,
   PACK_MATERIAL_TRANSACTION,
+  PACK_MONTH_END_COIL_STOCK,
   PACK_OPS_PROCUREMENT,
   PACK_PERIOD_COSTS_INVENTORY,
   PACK_PURCHASE_REGISTER,
   PACK_REFUND_PERIOD,
   PACK_SALES_CUSTOMER,
 } from '../lib/reportsExportCatalog.js';
+import { monthEndStockFromMaterialReport, monthEndStockSheetAoa, monthEndStockSheetRows } from '../lib/monthEndStockExport.js';
 import {
   buildPaidExpensePrintRows,
   conversionSummaryExcelRows,
@@ -126,6 +128,8 @@ export function useReportsExport({
   const [printDense, setPrintDense] = useState(true);
   const [materialTxnReport, setMaterialTxnReport] = useState(null);
   const [materialTxnPrintOpen, setMaterialTxnPrintOpen] = useState(false);
+  const [monthEndStockReport, setMonthEndStockReport] = useState(null);
+  const [monthEndStockPrintOpen, setMonthEndStockPrintOpen] = useState(false);
   const [purchaseReport, setPurchaseReport] = useState(null);
   const [purchasePrintOpen, setPurchasePrintOpen] = useState(false);
   const mergePeriod = useCallback(
@@ -187,7 +191,7 @@ export function useReportsExport({
         accessoryUsage,
       } = mergePeriod(period);
       if (name === PACK_PERIOD_COSTS_INVENTORY) {
-        return rowsPeriodCostsInventoryPack(expenses, paymentRequests, coilLots, movements, startDate, endDate);
+        return rowsPeriodCostsInventoryPack(expenses, paymentRequests, coilLots, movements, startDate, endDate, purchaseOrders);
       }
       if (name === PACK_CASH_BANK_AR) {
         return rowsCashBankArPack(
@@ -295,7 +299,7 @@ export function useReportsExport({
       if (name === PACK_PERIOD_COSTS_INVENTORY) {
         const exRows = buildPaidExpensePrintRows(expenses, paymentRequests, startDate, endDate);
         const acRows = accruedApprovedPayablesRows(paymentRequests, startDate, endDate);
-        const val = coilInventoryValuationRows(coilLots);
+        const val = coilInventoryValuationRows(coilLots, purchaseOrders);
         const cogs = cogsMovementRows(movements, startDate, endDate);
         return {
           title: PACK_PERIOD_COSTS_INVENTORY,
@@ -831,7 +835,7 @@ export function useReportsExport({
     if (name === PACK_PERIOD_COSTS_INVENTORY && fmt === 'Excel') {
       const ex = paidExpensesInRange(expenses, paymentRequests, startDate, endDate);
       const ac = accruedApprovedPayablesRows(paymentRequests, startDate, endDate);
-      const val = coilInventoryValuationRows(coilLots);
+      const val = coilInventoryValuationRows(coilLots, purchaseOrders);
       const cogs = cogsMovementRows(movements, startDate, endDate);
       if (!ex.length && !ac.length && !val.length && !cogs.length) {
         showToast('No rows for this pack in the selected range.', { variant: 'info' });
@@ -1088,6 +1092,29 @@ export function useReportsExport({
       return;
     }
 
+    if (name === PACK_MONTH_END_COIL_STOCK) {
+      const res = await fetchMaterialTransactionReport(apiFetch, startDate, endDate);
+      if (!res.ok) {
+        showToast(res.error, { variant: 'error' });
+        return;
+      }
+      const stock = monthEndStockFromMaterialReport(res.report);
+      if (!stock || !stock.grandTotal.coilCount) {
+        showToast('No coils in stock at the period end.', { variant: 'info' });
+        return;
+      }
+      if (fmt === 'Excel') {
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(monthEndStockSheetAoa(stock)), 'Month-end coil stock');
+        XLSX.writeFile(wb, `${packSlug}.xlsx`);
+        showToast(`${name} exported as Excel.`);
+        return;
+      }
+      downloadRows(name, monthEndStockSheetRows(stock), fmt);
+      showToast(`${name} exported as ${fmt}.`);
+      return;
+    }
+
     if (name === PACK_MATERIAL_TRANSACTION) {
       const res = await fetchMaterialTransactionReport(apiFetch, startDate, endDate);
       if (!res.ok) {
@@ -1309,6 +1336,21 @@ export function useReportsExport({
       setPrintOpen(true);
       return;
     }
+    if (name === PACK_MONTH_END_COIL_STOCK) {
+      const res = await fetchMaterialTransactionReport(apiFetch, startDate, endDate);
+      if (!res.ok) {
+        showToast(res.error, { variant: 'error' });
+        return;
+      }
+      const stock = monthEndStockFromMaterialReport(res.report);
+      if (!stock || !stock.grandTotal.coilCount) {
+        showToast('No coils in stock at the period end.', { variant: 'info' });
+        return;
+      }
+      setMonthEndStockReport(stock);
+      setMonthEndStockPrintOpen(true);
+      return;
+    }
     if (name === PACK_MATERIAL_TRANSACTION) {
       const res = await fetchMaterialTransactionReport(apiFetch, startDate, endDate);
       if (!res.ok) {
@@ -1405,6 +1447,10 @@ export function useReportsExport({
     setMaterialTxnReport,
     materialTxnPrintOpen,
     setMaterialTxnPrintOpen,
+    monthEndStockReport,
+    setMonthEndStockReport,
+    monthEndStockPrintOpen,
+    setMonthEndStockPrintOpen,
     purchaseReport,
     setPurchaseReport,
     purchasePrintOpen,

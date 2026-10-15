@@ -37,7 +37,6 @@ import { rollFinishNeedsReason } from '../../lib/coilExpectedLife';
 import { CoilVarianceBadge } from '../../components/operations/CoilVarianceBadge';
 import { buildCoilStatementPayload } from '../../lib/coilStatementPrint.js';
 import CoilNumberCorrectionPanel from '../../components/operations/CoilNumberCorrectionPanel';
-import { coilNetKg } from '../../shared/lib/controlsPhase3.js';
 
 function asNum(v) {
   const n = Number(v);
@@ -871,13 +870,8 @@ export default function CoilProfile() {
                   <LifeStat label="Received kg" value={coilLife.receivedKg} />
                   <LifeStat label="Metres run" value={coilLife.metres} />
                   <LifeStat label="Expected kg" value={coilLife.expectedKg} />
+                  {/* Gross kg only on screens (weighed coil incl. spool); spool / net appear in the month-end stock report. */}
                   <LifeStat label="Live kg" value={coilLife.erpKg} />
-                  {/* Phase 3: spool recorded at receipt; net kg is what stock value uses. */}
-                  <LifeStat label="Spool kg" value={coil.spoolKg} />
-                  <LifeStat
-                    label="Net kg (live − spool)"
-                    value={coil.spoolKg == null ? null : coilNetKg(coilLife.erpKg, coil.spoolKg)}
-                  />
                   <div className="rounded-md border border-slate-200 bg-slate-50/50 px-3 py-3">
                     <p className="text-ui-xs font-medium text-slate-500">Variance</p>
                     <div className="mt-1">

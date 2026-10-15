@@ -12,6 +12,7 @@ export const PACK_PURCHASE_REGISTER = 'Purchase register';
 export const PACK_MATERIAL_EXCEPTIONS = 'Material exceptions (offcut)';
 export const PACK_CONVERSION_SUMMARY = 'Conversion summary by material & gauge';
 export const PACK_COIL_STOCK_TIEOUT = 'Coil stock tie-out';
+export const PACK_MONTH_END_COIL_STOCK = 'Month-end coil stock';
 
 /** Jobs on /reports — URL ?job= */
 export const REPORT_JOBS = {
@@ -496,6 +497,16 @@ export const EXPORT_SECTIONS = [
         title: 'Material transaction register',
         desc: 'Alu/aluzinc by gauge, stone coated, accessories, cancelled coils, and listed-not-produced.',
         icon: Table2,
+        formats: ['Excel', 'CSV'],
+        printCoverage: 'full',
+      },
+      {
+        id: 'month-end-coil-stock',
+        kind: 'pack',
+        pack: PACK_MONTH_END_COIL_STOCK,
+        title: 'Month-end coil stock',
+        desc: 'Coils at the period end: gross, spool, net kg, rate and value at net, with subtotals by material and gauge.',
+        icon: Scale,
         formats: ['Excel', 'CSV'],
         printCoverage: 'full',
       },

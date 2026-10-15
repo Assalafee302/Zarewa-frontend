@@ -8,6 +8,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { isLocalGlEnabled } from '../../lib/accountingPolicyFlags';
 import { apiFetch } from '../../lib/apiBase';
 import { MaterialTransactionPrintModal } from '../../components/reports/MaterialTransactionPrintModal.jsx';
+import { MonthEndStockPrintModal } from '../../components/reports/MonthEndStockPrintModal.jsx';
 import { PurchaseReportPrintModal } from '../../components/reports/PurchaseReportPrintModal.jsx';
 import { ReportsPeriodBar } from '../../components/reports/ReportsPeriodBar.jsx';
 import { ReportsExportCatalog } from '../../components/reports/ReportsExportCatalog.jsx';
@@ -162,6 +163,10 @@ const Reports = () => {
     setMaterialTxnReport,
     materialTxnPrintOpen,
     setMaterialTxnPrintOpen,
+    monthEndStockReport,
+    setMonthEndStockReport,
+    monthEndStockPrintOpen,
+    setMonthEndStockPrintOpen,
     purchaseReport,
     setPurchaseReport,
     purchasePrintOpen,
@@ -322,6 +327,16 @@ const Reports = () => {
         report={materialTxnReport}
         branchLabel={ws.branchLabel || ws.branchId}
         periodLabel={periodLabel}
+      />
+
+      <MonthEndStockPrintModal
+        open={monthEndStockPrintOpen && !!monthEndStockReport}
+        onClose={() => {
+          setMonthEndStockPrintOpen(false);
+          setMonthEndStockReport(null);
+        }}
+        report={monthEndStockReport}
+        branchLabel={ws.branchLabel || ws.branchId}
       />
 
       <PurchaseReportPrintModal

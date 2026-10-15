@@ -14,7 +14,7 @@ import { isReceiptReversed, receiptEffectiveCashNgn } from './receiptClearance.j
 import { receiptCashReceivedNgn } from './salesReceiptsList.js';
 import { abbreviateBankName } from './bankAbbreviation.js';
 import { displayDocNumber } from './reportDisplayFormat.js';
-import { coilNetKg } from '../shared/lib/controlsPhase3.js';
+import { buildCoilRegister, splitSpool, spoolKgForCoil } from '../shared/lib/coilRegisterCore.js';
 
 function toIsoDate(value) {
   return String(value || '').slice(0, 10);
@@ -1817,35 +1817,54 @@ export function purchaseOrderAccrualBridgeRows(purchaseOrders = []) {
   });
 }
 
-/** Coil lots still holding quantity — inventory value using stored cost fields when present. */
-export function coilInventoryValuationRows(coilLots = []) {
-  return (coilLots || [])
-    .filter((lot) => (Number(lot.qtyRemaining) || 0) > 0.0001 || (Number(lot.currentWeightKg) || 0) > 0.0001)
-    .map((lot) => {
-      const kg = Number(lot.currentWeightKg) || Number(lot.qtyRemaining) || 0;
-      // Phase 3: value the kg net of the spool recorded at receipt (coils received earlier have none recorded).
-      const spoolKg = lot.spoolKg != null && lot.spoolKg !== '' ? Number(lot.spoolKg) || 0 : 0;
-      const netKg = coilNetKg(kg, spoolKg);
-      const unit = Math.round(Number(lot.unitCostNgnPerKg) || 0);
-      const valueNgn =
-        unit > 0 && kg > 0
-          ? Math.round(netKg * unit)
-          : lot.landedCostNgn != null && Number(lot.landedCostNgn) > 0
-            ? Math.round(Number(lot.landedCostNgn))
-            : '';
-      return {
-        coilNo: lot.coilNo,
-        productID: lot.productID,
-        poID: lot.poID || '',
-        kgOnHand: kg,
-        spoolKg,
-        netKg,
-        unitCostNgnPerKg: unit || '',
-        extendedValueNgn: valueNgn,
-        currentStatus: lot.currentStatus,
-        branchId: lot.branchId || '',
-      };
-    });
+/**
+ * Coil lots still holding quantity, valued at NET kg × rate (owner, 15 Oct 2026). Spool and rate come from the
+ * coil register's rule (Aluzinc 65 kg, aluminium bought by kg 45 kg, by the metre 0; metre-bought coils costed at
+ * PO line amount ÷ kg received), the same as the material register and the month-end coil stock report.
+ * Coils the register cannot place (no receive date) use the same spool rule and their own unit cost.
+ */
+export function coilInventoryValuationRows(coilLots = [], purchaseOrders = []) {
+  const onHand = (coilLots || []).filter(
+    (lot) => (Number(lot.qtyRemaining) || 0) > 0.0001 || (Number(lot.currentWeightKg) || 0) > 0.0001
+  );
+  const today = new Date().toISOString().slice(0, 10);
+  const reg = buildCoilRegister({
+    coilLots: onHand.map((lot) => ({ ...lot, currentWeightKg: Number(lot.currentWeightKg) || Number(lot.qtyRemaining) || 0 })),
+    purchaseOrders,
+    stockMovements: [],
+    startDate: today,
+    endDate: today,
+  });
+  const byCoil = new Map(reg.stock.closing.rows.map((r) => [r.coilNo, r]));
+  return onHand.map((lot) => {
+    const kg = Number(lot.currentWeightKg) || Number(lot.qtyRemaining) || 0;
+    const r = byCoil.get(String(lot.coilNo || '').trim());
+    const spoolSplit = r
+      ? { spoolKg: r.spoolKg, netKg: r.kgNet }
+      : splitSpool(kg, spoolKgForCoil({ materialTypeName: lot.materialTypeName, productID: lot.productID }, 'kg'));
+    const unit = r ? Math.round(Number(r.unitCostNgnPerKg) || 0) : Math.round(Number(lot.unitCostNgnPerKg) || 0);
+    const landed = Number(lot.landedCostNgn) || 0;
+    const valueNgn =
+      unit > 0 && kg > 0
+        ? Math.round(spoolSplit.netKg * unit)
+        : landed > 0 && kg > 0
+          ? Math.round((landed * spoolSplit.netKg) / kg)
+          : '';
+    return {
+      coilNo: lot.coilNo,
+      productID: lot.productID,
+      poID: lot.poID || '',
+      kgOnHand: kg,
+      spoolKg: spoolSplit.spoolKg,
+      netKg: spoolSplit.netKg,
+      unitCostNgnPerKg: unit || '',
+      extendedValueNgn: valueNgn,
+      boughtBy: r?.boughtBy || '',
+      costSource: r?.costSource || (unit > 0 ? 'coil' : landed > 0 ? 'landed cost (net share)' : 'none'),
+      currentStatus: lot.currentStatus,
+      branchId: lot.branchId || '',
+    };
+  });
 }
 
 /** Stock movements in period with optional COGS value (e.g. COIL_CONSUMPTION). */
