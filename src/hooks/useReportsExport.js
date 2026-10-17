@@ -1218,10 +1218,12 @@ export function useReportsExport({
         if (!res.cancelled) showToast(res.error, { variant: 'error' });
         return;
       }
-      const [sheet] = treasuryCashBookExcelSheets(res.book);
+      const sheets = treasuryCashBookExcelSheets(res.book);
+      const [sheet] = sheets;
       if (fmt === 'Excel') {
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheet.rows.length ? sheet.rows : [{}]), sheet.name.slice(0, 31));
+        // Cash book, then "Awaiting confirmation".
+        for (const s of sheets) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(s.rows.length ? s.rows : [{}]), s.name.slice(0, 31));
         XLSX.writeFile(wb, `${packSlug}.xlsx`);
         showToast(`${name} exported as Excel.`);
         return;

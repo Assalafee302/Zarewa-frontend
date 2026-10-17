@@ -724,7 +724,7 @@ async function fetchBankReconStatementReport(apiFetch, startDate, endDate, balan
  * the user picks one by number. `endAt` (optional ISO) cuts the last day at a statement time.
  * @returns {Promise<{ ok: true, book: object } | { ok: false, error?: string, cancelled?: boolean }>}
  */
-async function fetchTreasuryCashBookReport(apiFetch, startDate, endDate, { accountId, endAt, ask = (t) => window.prompt(t, '') } = {}) {
+async function fetchTreasuryCashBookReport(apiFetch, startDate, endDate, { accountId, endAt, mode, ask = (t) => window.prompt(t, '') } = {}) {
   let id = Number(accountId) || 0;
   if (!id) {
     const list = await apiFetch('/api/reports/treasury-cash-book');
@@ -739,6 +739,8 @@ async function fetchTreasuryCashBookReport(apiFetch, startDate, endDate, { accou
   }
   const q = new URLSearchParams({ accountId: String(id), startDate, endDate });
   if (endAt) q.set('endAt', endAt);
+  // Server default: confirmed movements (balance of record); "all" adds receipts awaiting confirmation.
+  if (mode === 'all') q.set('mode', 'all');
   const { ok, data } = await apiFetch(`/api/reports/treasury-cash-book?${q.toString()}`);
   if (!ok || !data?.ok) return { ok: false, error: data?.error || 'Could not load the treasury account statement.' };
   return { ok: true, book: data.book };
