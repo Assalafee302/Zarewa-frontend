@@ -11,7 +11,7 @@ import {
   sortPayoutQueue,
   summarizePayoutDue,
 } from './financePayoutDesk.js';
-import { payoutLineAccountGate } from './financePayoutDesk.js';
+import { overdueRefundsHeadline, payoutLineAccountGate, refundQueueAge } from './financePayoutDesk.js';
 
 const today = new Date('2026-09-29T12:00:00Z');
 
@@ -142,5 +142,30 @@ describe('payoutLineAccountGate (A1)', () => {
   it('blocks a payable line when a sibling payee on the same refund is missing an account', () => {
     expect(payoutLineAccountGate(ok, [ok, bad]).blockedBy).toBe('Driver Ali');
     expect(payoutLineAccountGate(ok, [ok, { ...bad, amountDueNgn: 0 }]).blockedBy).toBe('');
+  });
+});
+
+describe('refund queue age and overdue tile (A4)', () => {
+  const today = new Date(2026, 9, 17);
+  it('is amber after 7 days and red after 30', () => {
+    expect(refundQueueAge({ approvalDate: '2026-10-10' }, today)).toEqual({ days: 7, tone: 'none' });
+    expect(refundQueueAge({ approvalDate: '2026-10-09' }, today)).toEqual({ days: 8, tone: 'amber' });
+    expect(refundQueueAge({ approvedAtISO: '2026-09-16T10:00:00Z' }, today)).toEqual({ days: 31, tone: 'red' });
+    expect(refundQueueAge({}, today).tone).toBe('none');
+  });
+
+  it('counts overdue refunds once and sums what is left to pay on them', () => {
+    const old = { approvalDate: '2026-10-01' };
+    const fresh = { approvalDate: '2026-10-15' };
+    const h = overdueRefundsHeadline(
+      [
+        { refundID: 'RF-1', amountDueNgn: 10000, parentRefund: old },
+        { refundID: 'RF-1', amountDueNgn: 3000, parentRefund: old },
+        { refundID: 'RF-2', amountDueNgn: 0, parentRefund: old },
+        { refundID: 'RF-3', amountDueNgn: 5000, parentRefund: fresh },
+      ],
+      today
+    );
+    expect(h).toEqual({ count: 1, ngn: 13000 });
   });
 });

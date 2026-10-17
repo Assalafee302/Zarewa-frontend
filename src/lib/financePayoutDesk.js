@@ -195,3 +195,40 @@ export function payoutLineAccountGate(line, siblings = []) {
   );
   return { missing: false, problem: '', blockedBy: other ? String(other.recipientLabel || other.payeeName || 'Another payee') : '' };
 }
+
+/** A4: refund queue age from the approval day. >7 days amber, >30 days red. */
+export const REFUND_OVERDUE_DAYS = 7;
+export const REFUND_LATE_DAYS = 30;
+
+export function refundApprovedDayISO(refund) {
+  return String(refund?.approvedAtISO || refund?.approvalDate || refund?.approval_date || refund?.dateISO || '').slice(0, 10);
+}
+
+/** @returns {{ days: number | null, tone: 'none' | 'amber' | 'red' }} */
+export function refundQueueAge(refund, today = new Date()) {
+  const days = payoutAgeDays(refundApprovedDayISO(refund), today);
+  if (days == null) return { days: null, tone: 'none' };
+  if (days > REFUND_LATE_DAYS) return { days, tone: 'red' };
+  if (days > REFUND_OVERDUE_DAYS) return { days, tone: 'amber' };
+  return { days, tone: 'none' };
+}
+
+/**
+ * A4 desk tile: refunds approved more than 7 days ago that still have cash to pay.
+ * Counts refunds (not payee lines) and sums what is left to pay on those same refunds.
+ * @param {Array<{ refundID: string, amountDueNgn?: number, parentRefund?: object }>} refundLines
+ */
+export function overdueRefundsHeadline(refundLines = [], today = new Date()) {
+  const byRefund = new Map();
+  for (const line of refundLines || []) {
+    const due = Math.max(0, Math.round(Number(line?.amountDueNgn) || 0));
+    if (due <= 0) continue;
+    const age = refundQueueAge(line?.parentRefund || line, today);
+    if (age.days == null || age.days <= REFUND_OVERDUE_DAYS) continue;
+    const id = String(line?.refundID || '');
+    byRefund.set(id, (byRefund.get(id) || 0) + due);
+  }
+  let ngn = 0;
+  for (const v of byRefund.values()) ngn += v;
+  return { count: byRefund.size, ngn };
+}

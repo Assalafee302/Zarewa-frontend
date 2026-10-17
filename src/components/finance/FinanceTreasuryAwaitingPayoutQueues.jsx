@@ -18,13 +18,29 @@ import { refundIsOnPayoutHold, refundPayoutHoldReason } from '../../lib/refundsS
 import {
   paymentRequestOutstandingNgn,
   poTransportPayoutMetaLine,
-  refundPayeePayoutMetaLine,
+  refundQueueCardMeta,
   paymentRequestPayoutMetaLine,
   registerSettlementOutstandingNgn,
   registerSettlementPayoutMetaLine,
 } from '../../lib/financeTreasuryPayoutQueueMeta';
 import { maintenanceCostKindLabel } from '../../shared/lib/maintenanceCostEnvelope';
-import { matchesPayoutQuery, sortPayoutQueue } from '../../lib/financePayoutDesk';
+import { matchesPayoutQuery, refundApprovedDayISO, refundQueueAge, sortPayoutQueue } from '../../lib/financePayoutDesk';
+
+/** A4: age since approval — amber after 7 days, red after 30. */
+function RefundAgeBadge({ refund }) {
+  const age = refundQueueAge(refund);
+  if (age.tone === 'none') return null;
+  const cls = age.tone === 'red' ? 'bg-red-600 text-white' : 'bg-amber-200 text-amber-950';
+  return (
+    <span
+      className={`mr-1 inline-flex rounded-full px-2 py-0.5 text-ui-xs font-bold tabular-nums ${cls}`}
+      title={`Approved ${age.days} days ago`}
+      data-testid="refund-age-badge"
+    >
+      {age.days} d
+    </span>
+  );
+}
 import { SalesListSearchInput } from '../sales/SalesListTableFrame';
 import { deskPayoutLines, payoutHeadline } from '../../lib/financeDeskHeadlines.js';
 
@@ -161,7 +177,7 @@ export function FinanceTreasuryAwaitingPayoutQueues({
   const refundQueueActor = ws?.session?.user;
   const refundQueueHasPermission = ws?.hasPermission;
   const [query, setQuery] = useState('');
-  const [sortMode, setSortMode] = useState('date_desc');
+  const [sortMode, setSortMode] = useState('date_asc');
   const id = (suffix) => (sectionIdPrefix ? `${sectionIdPrefix}-${suffix}` : undefined);
   const refundPayeeLines = useMemo(
     () =>
@@ -194,7 +210,7 @@ export function FinanceTreasuryAwaitingPayoutQueues({
       matched,
       sortMode,
       (line) => Number(line.amountDueNgn) || Number(line.netPayoutNgn) || 0,
-      (line) => String(line.parentRefund?.approvedAtISO || line.parentRefund?.approvalDate || line.parentRefund?.dateISO || '')
+      (line) => refundApprovedDayISO(line.parentRefund)
     );
   }, [refundPayeeLines, query, sortMode]);
 
@@ -316,8 +332,8 @@ export function FinanceTreasuryAwaitingPayoutQueues({
               data-testid="finance-payout-queue-sort"
               className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold normal-case tracking-normal text-slate-800"
             >
-              <option value="date_desc">Newest approved</option>
               <option value="date_asc">Oldest approved</option>
+              <option value="date_desc">Newest approved</option>
               <option value="amount_desc">Highest amount</option>
               <option value="amount_asc">Lowest amount</option>
             </select>
@@ -367,6 +383,7 @@ export function FinanceTreasuryAwaitingPayoutQueues({
                   statusIndicator={statusIndicator}
                   title={
                     <>
+                      <RefundAgeBadge refund={r} />
                       {refundIsOnPayoutHold(r) ? (
                         <span className="mr-1 inline-flex rounded-full bg-red-600 px-2 py-0.5 text-ui-xs font-bold text-white" title={refundPayoutHoldReason(r)}>
                           On hold{refundPayoutHoldReason(r) ? ` · ${refundPayoutHoldReason(r)}` : ''}
@@ -386,8 +403,9 @@ export function FinanceTreasuryAwaitingPayoutQueues({
                       </span>
                     </>
                   }
-                  meta={refundPayeePayoutMetaLine(r, line, branchNameById)}
+                  meta={refundQueueCardMeta(r, line, branchNameById)}
                   extra={<RefundPayeeExtra payeeLine={line} />}
+                  amountLabel={line.amountDueNgn > 0 ? 'Remaining to pay' : ''}
                   amount={
                     line.amountDueNgn > 0
                       ? formatNgn(line.amountDueNgn)

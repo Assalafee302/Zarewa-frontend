@@ -138,6 +138,7 @@ export function FinanceDeskColoredQueueRow({
   meta,
   extra,
   amount,
+  amountLabel = '',
   actions,
   testId,
 }) {
@@ -161,7 +162,14 @@ export function FinanceDeskColoredQueueRow({
           {extra}
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
-          <span className="text-xs font-black text-zarewa-teal tabular-nums">{amount}</span>
+          {amountLabel ? (
+            <span className="flex flex-col items-end leading-tight">
+              <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{amountLabel}</span>
+              <span className="text-base font-black text-zarewa-teal tabular-nums">{amount}</span>
+            </span>
+          ) : (
+            <span className="text-xs font-black text-zarewa-teal tabular-nums">{amount}</span>
+          )}
           <div className="flex flex-wrap items-center justify-end gap-1">{actions}</div>
         </div>
       </div>

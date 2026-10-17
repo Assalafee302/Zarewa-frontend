@@ -108,7 +108,7 @@ import { FinanceTreasuryAwaitingPayoutQueues } from "./FinanceTreasuryAwaitingPa
 import { OrphanHaulageDeskPanel } from "./OrphanHaulageDeskPanel";
 import { AddPayoutAccountModal } from "./AddPayoutAccountModal";
 import { flattenRefundDeskQueue } from "../../lib/refundCashierDetail";
-import { payoutLineAccountGate } from "../../lib/financePayoutDesk.js";
+import { overdueRefundsHeadline, payoutLineAccountGate } from "../../lib/financePayoutDesk.js";
 import {
   findQuotationByRef,
   quotationColourGaugeLabel,
@@ -847,6 +847,9 @@ export function FinanceDeskWorkQueues({
 
   const payoutQueueCount = payoutHead.openCount + partnerWalletsDue.length;
 
+  /** A4: refunds approved more than 7 days ago with cash still to pay. */
+  const overdueRefunds = useMemo(() => overdueRefundsHeadline(refundPayeeLinesAll), [refundPayeeLinesAll]);
+
   const moneyInQueueCount =
     pendingReceiptsAll.length +
     purchasePaymentAcksAll.length +
@@ -966,7 +969,7 @@ export function FinanceDeskWorkQueues({
         <>
           {!isCashier ? (
           <section className="space-y-3">
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4" data-testid="finance-desk-headlines">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5" data-testid="finance-desk-headlines">
               <FinanceKpiCard
                 compact
                 label="Pending receipts"
@@ -996,6 +999,15 @@ export function FinanceDeskWorkQueues({
                 }
                 tone={payoutHead.openCount > 0 ? "amber" : "default"}
                 icon={<ClipboardList size={14} />}
+              />
+
+              <FinanceKpiCard
+                compact
+                label="Overdue refunds"
+                value={overdueRefunds.count}
+                hint={overdueRefunds.count ? `${formatNgn(overdueRefunds.ngn)} · approved over 7 days ago` : "None over 7 days"}
+                tone={overdueRefunds.count > 0 ? "rose" : "default"}
+                icon={<RotateCcw size={14} />}
               />
 
               <FinanceKpiCard
