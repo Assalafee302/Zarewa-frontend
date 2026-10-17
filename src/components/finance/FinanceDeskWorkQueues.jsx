@@ -34,10 +34,11 @@ import {
   isReceiptCleared,
   isReceiptPendingClearance,
   liquidityClearanceSplit,
-  pendingClearanceTotalNgn,
   receiptClearanceBadgeLabel,
+  receiptEffectiveCashNgn,
   receiptRegisteredByLabel,
 } from "../../lib/receiptClearance";
+import { deskPayoutLines, payoutHeadline, receiptHeadlines } from "../../lib/financeDeskHeadlines.js";
 
 import {
   enrichReceiptsWithCuttingListMeta,
@@ -562,6 +563,22 @@ export function FinanceDeskWorkQueues({
     [receiptsWithCuttingMeta],
   );
 
+  /** A3: suspended / under-investigation receipts — their own headline, never in the pending total. */
+  const heldReceiptsAll = useMemo(
+    () => receiptsWithCuttingMeta.filter((r) => isReceiptPendingClearance(r) && receiptHeldForInvestigation(r)),
+    [receiptsWithCuttingMeta],
+  );
+
+  const receiptHeads = useMemo(
+    () =>
+      receiptHeadlines({
+        pending: pendingReceiptsAll,
+        held: heldReceiptsAll,
+        amountOf: (r) => receiptEffectiveCashNgn(r),
+      }),
+    [pendingReceiptsAll, heldReceiptsAll],
+  );
+
   const deskQuery = String(searchQuery || "").trim();
 
   const purchasePaymentAcks = useMemo(() => {
@@ -805,12 +822,30 @@ export function FinanceDeskWorkQueues({
     [treasuryAccounts, receipts, tillTruth, bookTotalNgn],
   );
 
-  const payoutQueueCount =
-    approvedPaymentsAll.length +
-    approvedRefundsAll.length +
-    approvedRegisterSettlementsAll.length +
-    poTransportAwaitingAll.length +
-    partnerWalletsDue.length;
+  /** A3: one payout list (a line per refund payee, expense, withdrawal, haulage PO) for every payout headline. */
+  const refundPayeeLinesAll = useMemo(
+    () =>
+      flattenRefundDeskQueue(approvedRefundsAll, {
+        actor: ws?.session?.user,
+        hasPermission: ws?.hasPermission,
+      }),
+    [approvedRefundsAll, ws?.session?.user, ws?.hasPermission],
+  );
+
+  const payoutHead = useMemo(
+    () =>
+      payoutHeadline(
+        deskPayoutLines({
+          refundLines: refundPayeeLinesAll,
+          paymentRequests: approvedPaymentsAll,
+          registerSettlements: approvedRegisterSettlementsAll,
+          haulage: poTransportAwaitingAll,
+        })
+      ),
+    [refundPayeeLinesAll, approvedPaymentsAll, approvedRegisterSettlementsAll, poTransportAwaitingAll],
+  );
+
+  const payoutQueueCount = payoutHead.openCount + partnerWalletsDue.length;
 
   const moneyInQueueCount =
     pendingReceiptsAll.length +
@@ -879,8 +914,8 @@ export function FinanceDeskWorkQueues({
         <FinanceDeskTillStrip
           tillTruth={tillTruth}
           bookTotalNgn={liquidity.bookTotalNgn}
-          pendingReceipts={pendingReceiptsAll.length}
-          pendingReceiptsNgn={pendingClearanceTotalNgn(receipts)}
+          pendingReceipts={receiptHeads.pending.count}
+          pendingReceiptsNgn={receiptHeads.pending.ngn}
           payouts={payoutQueueCount}
           confirmedToday={trialData?.confirmedReceipts?.today ?? confirmedTodayCount}
           onCloseDay={() => onGoToTab?.('audit')}
@@ -931,26 +966,35 @@ export function FinanceDeskWorkQueues({
         <>
           {!isCashier ? (
           <section className="space-y-3">
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4" data-testid="finance-desk-headlines">
               <FinanceKpiCard
                 compact
                 label="Pending receipts"
-                value={pendingReceiptsAll.length}
-                hint={formatNgn(pendingClearanceTotalNgn(receipts))}
+                value={receiptHeads.pending.count}
+                hint={formatNgn(receiptHeads.pending.ngn)}
                 tone="amber"
                 icon={<Banknote size={14} />}
               />
 
               <FinanceKpiCard
                 compact
+                label="Suspended / under investigation"
+                value={receiptHeads.held.count}
+                hint={receiptHeads.held.count ? formatNgn(receiptHeads.held.ngn) : "None held"}
+                tone={receiptHeads.held.count > 0 ? "rose" : "default"}
+                icon={<Banknote size={14} />}
+              />
+
+              <FinanceKpiCard
+                compact
                 label="Payouts to post"
-                value={payoutQueueCount}
+                value={payoutHead.openCount}
                 hint={
-                  payoutQueueCount
-                    ? "Expenses, refunds, withdrawals, haulage"
+                  payoutHead.openCount
+                    ? `${formatNgn(payoutHead.openNgn)} · Ready ${payoutHead.readyCount}`
                     : "None queued"
                 }
-                tone={payoutQueueCount > 0 ? "amber" : "default"}
+                tone={payoutHead.openCount > 0 ? "amber" : "default"}
                 icon={<ClipboardList size={14} />}
               />
 
@@ -1347,6 +1391,7 @@ export function FinanceDeskWorkQueues({
               paymentRequests={approvedPayments}
               registerSettlements={approvedRegisterSettlements}
               poTransport={poTransportAwaiting}
+              headline={payoutHead}
               poTransportPanelAction={
                 onViewPoTransport ? (
                   <FinanceActionButton variant="link" onClick={() => onGoToTab("movements")}>

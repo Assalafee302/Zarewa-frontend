@@ -24,8 +24,9 @@ import {
   registerSettlementPayoutMetaLine,
 } from '../../lib/financeTreasuryPayoutQueueMeta';
 import { maintenanceCostKindLabel } from '../../shared/lib/maintenanceCostEnvelope';
-import { haulageReadyNgn, matchesPayoutQuery, refundLineReadyNgn, sortPayoutQueue } from '../../lib/financePayoutDesk';
+import { matchesPayoutQuery, sortPayoutQueue } from '../../lib/financePayoutDesk';
 import { SalesListSearchInput } from '../sales/SalesListTableFrame';
+import { deskPayoutLines, payoutHeadline } from '../../lib/financeDeskHeadlines.js';
 
 function PaymentRequestCategoryExtra({ req }) {
   if (!req?.expenseCategory && !req?.expenseCategoryLane) return null;
@@ -154,6 +155,7 @@ export function FinanceTreasuryAwaitingPayoutQueues({
   renderPoTransportActions,
   children,
   alwaysShow = false,
+  headline = null,
 }) {
   const ws = useWorkspace();
   const refundQueueActor = ws?.session?.user;
@@ -251,13 +253,31 @@ export function FinanceTreasuryAwaitingPayoutQueues({
     refundPayeeLines.length + paymentRequests.length + registerSettlements.length + poTransport.length;
   const visibleCount =
     visibleRefunds.length + visibleRequests.length + visibleSettlements.length + visibleHaulage.length;
-  const readyNgn =
-    visibleRefunds.reduce((sum, line) => sum + refundLineReadyNgn(line), 0) +
-    visibleRequests.reduce((sum, req) => sum + paymentRequestOutstandingNgn(req), 0) +
-    visibleSettlements.reduce((sum, s) => sum + registerSettlementOutstandingNgn(s), 0) +
-    visibleHaulage.reduce((sum, row) => sum + haulageReadyNgn(row), 0);
   const hasChildren = Boolean(children);
   const searching = Boolean(String(query || '').trim());
+  // A3: count and ₦ come from one list — the caller's full queue, or the visible matches while searching.
+  const shownHead = useMemo(() => {
+    if (headline && !searching) return headline;
+    return payoutHeadline(
+      deskPayoutLines({
+        refundLines: searching ? visibleRefunds : refundPayeeLines,
+        paymentRequests: searching ? visibleRequests : paymentRequests,
+        registerSettlements: searching ? visibleSettlements : registerSettlements,
+        haulage: searching ? visibleHaulage : poTransport,
+      })
+    );
+  }, [
+    headline,
+    searching,
+    visibleRefunds,
+    visibleRequests,
+    visibleSettlements,
+    visibleHaulage,
+    refundPayeeLines,
+    paymentRequests,
+    registerSettlements,
+    poTransport,
+  ]);
 
   if (!alwaysShow && openCount === 0 && !hasChildren) return null;
 
@@ -270,10 +290,12 @@ export function FinanceTreasuryAwaitingPayoutQueues({
       <div className="flex flex-col gap-2 px-0.5 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-slate-800">Pay out</h2>
-          <p className="mt-0.5 text-ui-xs tabular-nums text-slate-500">
-            {searching ? `${visibleCount} match · ` : `${openCount}${hasChildren ? '+' : ''} open · `}
-            <span title="Items on hold stay in the list and are left out of this total.">
-              Ready {formatNgn(readyNgn)}
+          <p className="mt-0.5 text-ui-xs tabular-nums text-slate-500" data-testid="finance-payout-headline">
+            {searching ? `${shownHead.openCount} match · ` : `${shownHead.openCount} open · `}
+            {formatNgn(shownHead.openNgn)}
+            {' · '}
+            <span title="Lines on hold or waiting for receipts stay in the list and are left out of Ready.">
+              Ready {shownHead.readyCount} · {formatNgn(shownHead.readyNgn)}
             </span>
           </p>
         </div>
