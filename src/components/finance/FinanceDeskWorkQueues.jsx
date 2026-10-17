@@ -400,6 +400,22 @@ export function FinanceDeskWorkQueues({
     };
   }, [ws?.snapshot?.refunds, ws?.branchScope, staffBatchNonce]);
 
+  /** A8: last bank-statement import per treasury account, for the bank cards. */
+  const [statementByAccountId, setStatementByAccountId] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { ok, data } = await apiFetch("/api/treasury/statement-freshness");
+      if (cancelled || !ok || !data?.ok) return;
+      setStatementByAccountId(
+        new Map((Array.isArray(data.accounts) ? data.accounts : []).map((a) => [Number(a.treasuryAccountId), a]))
+      );
+    })().catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [ws?.branchScope]);
+
   /** A7: refund staff lines paid through the weekly batch, keyed refundId::partyId. */
   const staffBatchLineKeys = useMemo(
     () =>
@@ -962,6 +978,7 @@ export function FinanceDeskWorkQueues({
           onAccountClick={onAccountClick}
           cardActionLabel={onAccountClick ? 'View statement' : undefined}
           nextActionSummary={nextActionSummary}
+          statementByAccountId={statementByAccountId}
         />
       ) : null}
 
