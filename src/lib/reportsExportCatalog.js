@@ -13,6 +13,7 @@ export const PACK_MATERIAL_EXCEPTIONS = 'Material exceptions (offcut)';
 export const PACK_CONVERSION_SUMMARY = 'Conversion summary by material & gauge';
 export const PACK_COIL_STOCK_TIEOUT = 'Coil stock tie-out';
 export const PACK_BANK_RECON_STATEMENT = 'Bank reconciliation statement';
+export const PACK_TREASURY_CASH_BOOK = 'Treasury account statement — cash-book layout';
 export const PACK_RECEIPTS_REGISTER = 'Receipts register';
 export const PACK_ACCRUAL_SALES_STATEMENT = 'Accrual sales statement';
 
@@ -462,6 +463,16 @@ export const EXPORT_SECTIONS = [
         pack: PACK_BANK_RECON_STATEMENT,
         title: 'Bank reconciliation statement',
         desc: 'Per account: ERP opening → receipts → refunds → payments → transfers → charges = ERP closing vs bank closing; then bank lines with no ERP link and ERP movements with no bank link.',
+        icon: Landmark,
+        formats: ['Excel', 'CSV'],
+        printCoverage: 'full',
+      },
+      {
+        id: 'treasury-cash-book',
+        kind: 'pack',
+        pack: PACK_TREASURY_CASH_BOOK,
+        title: 'Treasury account statement — cash-book layout',
+        desc: 'One account, day by day like the cash book: Ref, who and what, Cr, Dr, balance on every line, remark; a Total, one bank-charges line and the closing balance per day (statement close and difference when on file).',
         icon: Landmark,
         formats: ['Excel', 'CSV'],
         printCoverage: 'full',

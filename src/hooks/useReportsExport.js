@@ -33,6 +33,7 @@ import { salesReportExcelSheets, salesReportPrintPayload, salesRowCheckText } fr
 import { buildExpensesReport } from '../lib/expensesReportCore';
 import { expensesReportExcelSheets, expensesReportPrintPayload } from '../lib/expensesReportPrint';
 import { accountTitle, bankReconStatementDocument, bankReconStatementExcelSheets } from '../shared/lib/bankReconStatementPrint.js';
+import { treasuryCashBookDocument, treasuryCashBookExcelSheets } from '../shared/lib/treasuryCashBookPrint.js';
 import { renderReportDocument } from '../shared/lib/reportPrintDocument.js';
 import { buildRefundReport } from '../shared/lib/refundReportCore.js';
 import { refundReportDocument, refundReportExcelSheets } from '../shared/lib/refundReportPrint.js';
@@ -48,6 +49,7 @@ import { openReportPrintWindow } from '../lib/reportPrintWindow.js';
 import {
   PACK_ACCRUAL_SALES_STATEMENT,
   PACK_BANK_RECON_STATEMENT,
+  PACK_TREASURY_CASH_BOOK,
   PACK_RECEIPTS_REGISTER,
   PACK_CASH_BANK_AR,
   PACK_CONVERSION_SUMMARY,
@@ -68,6 +70,7 @@ import {
   downloadRows,
   fetchCoilStockTieOutReport,
   fetchBankReconStatementReport,
+  fetchTreasuryCashBookReport,
   fetchConversionSummaryReport,
   fetchMaterialTransactionReport,
   fetchPurchaseRegisterReport,
@@ -1209,6 +1212,25 @@ export function useReportsExport({
       return;
     }
 
+    if (name === PACK_TREASURY_CASH_BOOK) {
+      const res = await fetchTreasuryCashBookReport(apiFetch, startDate, endDate);
+      if (!res.ok) {
+        if (!res.cancelled) showToast(res.error, { variant: 'error' });
+        return;
+      }
+      const [sheet] = treasuryCashBookExcelSheets(res.book);
+      if (fmt === 'Excel') {
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheet.rows.length ? sheet.rows : [{}]), sheet.name.slice(0, 31));
+        XLSX.writeFile(wb, `${packSlug}.xlsx`);
+        showToast(`${name} exported as Excel.`);
+        return;
+      }
+      downloadRows(name, sheet.rows, fmt);
+      showToast(`${name} exported as ${fmt}.`);
+      return;
+    }
+
     if (name === PACK_BANK_RECON_STATEMENT) {
       const res = await fetchBankReconStatementReport(apiFetch, startDate, endDate);
       if (!res.ok) {
@@ -1438,6 +1460,16 @@ export function useReportsExport({
       }
       setMaterialTxnReport(res.report);
       setMaterialTxnPrintOpen(true);
+      return;
+    }
+    if (name === PACK_TREASURY_CASH_BOOK) {
+      const res = await fetchTreasuryCashBookReport(apiFetch, startDate, endDate);
+      if (!res.ok) {
+        if (!res.cancelled) showToast(res.error, { variant: 'error' });
+        return;
+      }
+      const html = renderReportDocument(treasuryCashBookDocument(res.book, { preparedBy, preparedAtISO: new Date().toISOString() }));
+      if (!openReportPrintWindow(html)) showToast('Allow pop-ups for this site to print the statement.', { variant: 'error' });
       return;
     }
     if (name === PACK_BANK_RECON_STATEMENT) {
