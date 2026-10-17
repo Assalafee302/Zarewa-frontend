@@ -1263,7 +1263,9 @@ const Account = () => {
               ? `Refund ${rid} released (wallet + till).`
               : refundPayTotalNgn >= outstanding
                 ? `Refund ${rid} fully paid.`
-                : `Refund ${rid} part-paid. Treasury updated.`
+                : Number(data?.roundingClosedNgn) > 0
+                  ? `Refund ${rid} paid. ₦${Math.round(Number(data.roundingClosedNgn)).toLocaleString('en-NG')} remainder closed as bank fee/rounding.`
+                  : `Refund ${rid} part-paid. Treasury updated.`
         );
         return;
       } finally {

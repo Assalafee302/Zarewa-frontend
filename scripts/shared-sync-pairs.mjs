@@ -119,6 +119,7 @@ export const SHARED_SYNC_PAIRS = [
   ['shared/lib/bankAbbreviation.js', 'src/shared/lib/bankAbbreviation.js'],
   ['shared/lib/controlsPhase3.js', 'src/shared/lib/controlsPhase3.js'],
   ['shared/lib/payoutAccountGuard.js', 'src/shared/lib/payoutAccountGuard.js'],
+  ['shared/lib/staffShareBatch.js', 'src/shared/lib/staffShareBatch.js'],
 ];
 
 /** src/lib stubs that re-export the synced canonical file. Do not put logic here. */
