@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Users } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
 import { apiFetch } from '../../lib/apiBase';
-import { payoutAccountProblem } from '../../shared/lib/payoutAccountGuard.js';
+import { payoutAccountProblem, treasuryAccountIsCashOffice } from '../../shared/lib/payoutAccountGuard.js';
 import {
   FinanceDeskColoredQueuePanel,
   FinanceDeskColoredQueueRow,
@@ -21,17 +21,25 @@ function weekLabel(weekKey) {
 export function StaffShareBatchPanel({ data, treasuryAccounts = [], onPaid, onAddPayoutAccount, showToast }) {
   const [payingKey, setPayingKey] = useState('');
   const [accountId, setAccountId] = useState('');
+  const [voucher, setVoucher] = useState('');
   const [busy, setBusy] = useState(false);
   const batches = Array.isArray(data?.batches) ? data.batches : [];
   if (!batches.length) return null;
+  // D2: paying from the Cash Office needs a voucher reference (the recipient is the staff member).
+  const fromCash = treasuryAccountIsCashOffice(treasuryAccounts.find((a) => String(a.id) === String(accountId))?.type);
 
   const pay = async (batch) => {
-    if (!accountId || busy) return;
+    if (!accountId || busy || (fromCash && voucher.trim().length < 3)) return;
     setBusy(true);
     try {
       const { ok, data: res } = await apiFetch('/api/staff-share-batches/pay', {
         method: 'POST',
-        body: JSON.stringify({ partyKind: batch.partyKind, partyId: batch.partyId, treasuryAccountId: Number(accountId) }),
+        body: JSON.stringify({
+          partyKind: batch.partyKind,
+          partyId: batch.partyId,
+          treasuryAccountId: Number(accountId),
+          ...(fromCash ? { cashRecipientName: batch.partyName, voucherReference: voucher.trim() } : {}),
+        }),
       });
       if (!ok || !res?.ok) {
         showToast?.(res?.error || 'Could not pay the staff-share batch.', { variant: 'error' });
@@ -89,10 +97,15 @@ export function StaffShareBatchPanel({ data, treasuryAccounts = [], onPaid, onAd
               amountLabel={b.readyNgn > 0 ? 'Batch total' : ''}
               amount={formatNgn(b.readyNgn)}
               actions={
-                b.paidThisWeek || b.readyNgn <= 0 ? null : accountProblem ? (
+                b.paidThisWeek || b.readyNgn <= 0 ? null : accountProblem && payingKey !== b.key ? (
+                  <span className="flex items-center gap-1">
                   <FinanceDeskQueueActionButton tone="violet" title={accountProblem} onClick={() => onAddPayoutAccount?.(b)}>
                     Add payout account
                   </FinanceDeskQueueActionButton>
+                  <FinanceDeskQueueActionButton tone="teal" title="No bank account — pay from the Cash Office with a voucher." onClick={() => setPayingKey(b.key)}>
+                    Pay cash
+                  </FinanceDeskQueueActionButton>
+                  </span>
                 ) : payingKey === b.key ? (
                   <span className="flex items-center gap-1">
                     <select
@@ -108,7 +121,20 @@ export function StaffShareBatchPanel({ data, treasuryAccounts = [], onPaid, onAd
                         </option>
                       ))}
                     </select>
-                    <FinanceDeskQueueActionButton tone="primary" disabled={!accountId || busy} onClick={() => void pay(b)}>
+                    {fromCash ? (
+                      <input
+                        className="w-28 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs"
+                        value={voucher}
+                        onChange={(e) => setVoucher(e.target.value)}
+                        placeholder="Voucher ref"
+                        aria-label="Voucher reference"
+                      />
+                    ) : null}
+                    <FinanceDeskQueueActionButton
+                      tone="primary"
+                      disabled={!accountId || busy || (fromCash && voucher.trim().length < 3)}
+                      onClick={() => void pay(b)}
+                    >
                       {busy ? 'Paying…' : `Pay ${formatNgn(b.readyNgn)}`}
                     </FinanceDeskQueueActionButton>
                   </span>
