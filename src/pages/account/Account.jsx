@@ -123,6 +123,7 @@ import { AccountingRegisterSettlementPayModal } from '../../components/finance/A
 import { RefundCashierDetailModal } from '../../components/finance/RefundCashierDetailModal.jsx';
 import { RefundPayoutModal } from '../../components/finance/RefundPayoutModal.jsx';
 import { PaymentRequestPayoutModal } from '../../components/finance/PaymentRequestPayoutModal.jsx';
+import { payLinesUseCashOffice } from '../../lib/cashOfficePayout.js';
 import { ExpenseCashierDetailModal } from '../../components/finance/ExpenseCashierDetailModal.jsx';
 import { resolveExpenseCashierTarget } from '../../lib/expenseCashierDetail.js';
 import { StaffRecoveryCashierModal } from '../../components/finance/StaffRecoveryCashierModal.jsx';
@@ -328,6 +329,8 @@ const Account = () => {
   /** A6: Refund Credit App opened after "Use refund credit instead" cancelled the cash receipt. */
   const [useRefundCreditTarget, setUseRefundCreditTarget] = useState(null);
   const [useRefundCreditBusy, setUseRefundCreditBusy] = useState(false);
+  /** Owner D2: Cash Office payouts carry recipient name + voucher reference. */
+  const [cashOfficePay, setCashOfficePay] = useState({ recipientName: '', voucherReference: '' });
   const [cashierRefundCreditLoading, setCashierRefundCreditLoading] = useState(false);
   /** Expanded when refund fund can cover this receipt. The use-refund box starts unticked. */
   const [cashierRefundCreditDetailsOpen, setCashierRefundCreditDetailsOpen] = useState(false);
@@ -1106,6 +1109,7 @@ const Account = () => {
           setSelectedPayment(null);
           setRequestPayLines([]);
           setRequestPayNote('');
+          setCashOfficePay({ recipientName: '', voucherReference: '' });
         }
         void ws.refreshDomain?.('finance');
         showToast(
@@ -1234,6 +1238,9 @@ const Account = () => {
             paymentLines: tillLines,
             releasePartnerWallet: releaseWallet,
             treasuryAccountId: releaseWallet ? treasuryAccountId : undefined,
+            ...(payLinesUseCashOffice(tillLines, bankAccountsForPayout)
+              ? { cashRecipientName: cashOfficePay.recipientName.trim(), voucherReference: cashOfficePay.voucherReference.trim() }
+              : {}),
           }),
         });
         if (!ok || !data?.ok) {
@@ -1255,6 +1262,7 @@ const Account = () => {
         setRefundPaidBy('');
         setRefundPayLines([]);
         setRefundPaymentNote('');
+        setCashOfficePay({ recipientName: '', voucherReference: '' });
         setRefundReleaseWallet(true);
         showToast(
           releaseWallet && tillLines.length === 0
@@ -1545,6 +1553,7 @@ const Account = () => {
       setSelectedPayment(null);
       setRequestPayLines([]);
       setRequestPayNote('');
+      setCashOfficePay({ recipientName: '', voucherReference: '' });
       showToast(
         fullyPaid
           ? `PO ${poId} transport fee fully paid from treasury.`
@@ -1566,6 +1575,9 @@ const Account = () => {
               body: JSON.stringify({
                 note: requestPayNote.trim(),
                 paymentLines: validLines,
+                ...(payLinesUseCashOffice(validLines, bankAccountsForPayout)
+                  ? { cashRecipientName: cashOfficePay.recipientName.trim(), voucherReference: cashOfficePay.voucherReference.trim() }
+                  : {}),
               }),
             },
             'payment_request_pay'
@@ -1597,6 +1609,7 @@ const Account = () => {
     setSelectedPayment(null);
     setRequestPayLines([]);
     setRequestPayNote('');
+    setCashOfficePay({ recipientName: '', voucherReference: '' });
     showToast(
       fullyPaid
         ? `Payment request ${selectedPayment.id} fully paid from treasury.`
@@ -5043,6 +5056,7 @@ const Account = () => {
           setRefundPaidBy('');
           setRefundPayLines([]);
           setRefundPaymentNote('');
+          setCashOfficePay({ recipientName: '', voucherReference: '' });
         }}
         refund={refundPayTarget}
         selectedPayeeKey={refundPayPayeeKey}
@@ -5063,6 +5077,8 @@ const Account = () => {
         isSubmitting={treasuryPayoutSubmitting}
         onConfirmPay={confirmRefundPaid}
         onLiftHold={liftRefundPayoutHold}
+        cashOffice={cashOfficePay}
+        onCashOfficeChange={setCashOfficePay}
         userMaySetRefundPayoutHold={userMaySetRefundPayoutHold(ws?.session?.user)}
       />
 
@@ -5074,6 +5090,7 @@ const Account = () => {
           setSelectedPayment(null);
           setRequestPayLines([]);
           setRequestPayNote('');
+          setCashOfficePay({ recipientName: '', voucherReference: '' });
         }}
         selectedPayment={selectedPayment}
         bankAccounts={bankAccounts}
@@ -5092,6 +5109,8 @@ const Account = () => {
         cancelPayRequestBusyId={cancelPayRequestBusyId}
         onCancelPaymentRequest={cancelPaymentRequestBeforePay}
         onConfirmPay={confirmProcessPaymentModal}
+        cashOffice={cashOfficePay}
+        onCashOfficeChange={setCashOfficePay}
       />
 
       <ModalFrame

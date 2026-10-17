@@ -1480,35 +1480,39 @@ export function FinanceDeskWorkQueues({
                         line,
                         flattenRefundDeskQueue([line.parentRefund]).filter((s) => !lineInStaffBatch(s))
                       );
-                      if (gate.missing) {
-                        return (
-                          <FinanceDeskQueueActionButton
-                            tone="violet"
-                            title={gate.problem}
-                            onClick={() =>
-                              setPayoutAccountRequest({
-                                target: "refund",
-                                refundId: String(line.refundID || ""),
-                                partyKind: line.recipientKind === "associated_staff" ? "associated_staff" : "customer",
-                                partyId: String(line.partyId || ""),
-                                label: `${line.recipientLabel || "Payee"} on ${line.refundID}`,
-                                payeeName: line.payeeName,
-                              })
-                            }
-                          >
-                            Add payout account
-                          </FinanceDeskQueueActionButton>
-                        );
-                      }
+                      // D2: without a bank account the refund can still be paid from the Cash Office.
                       return (
-                        <FinanceDeskQueueActionButton
-                          tone="sky"
-                          disabled={Boolean(gate.blockedBy)}
-                          title={gate.blockedBy ? `Add the payout account for ${gate.blockedBy} first. The refund is paid as one request.` : undefined}
-                          onClick={() => onPayRefund(String(line.refundID || ''), line.queueKey)}
-                        >
-                          Pay
-                        </FinanceDeskQueueActionButton>
+                        <>
+                          {gate.missing ? (
+                            <FinanceDeskQueueActionButton
+                              tone="violet"
+                              title={gate.problem}
+                              onClick={() =>
+                                setPayoutAccountRequest({
+                                  target: "refund",
+                                  refundId: String(line.refundID || ""),
+                                  partyKind: line.recipientKind === "associated_staff" ? "associated_staff" : "customer",
+                                  partyId: String(line.partyId || ""),
+                                  label: `${line.recipientLabel || "Payee"} on ${line.refundID}`,
+                                  payeeName: line.payeeName,
+                                })
+                              }
+                            >
+                              Add payout account
+                            </FinanceDeskQueueActionButton>
+                          ) : null}
+                          <FinanceDeskQueueActionButton
+                            tone="sky"
+                            title={
+                              gate.missing || gate.blockedBy
+                                ? `No bank account for ${gate.missing ? line.recipientLabel || "this payee" : gate.blockedBy} — pay from the Cash Office (name + voucher), or add the account to pay by bank.`
+                                : undefined
+                            }
+                            onClick={() => onPayRefund(String(line.refundID || ''), line.queueKey)}
+                          >
+                            {gate.missing || gate.blockedBy ? "Pay cash" : "Pay"}
+                          </FinanceDeskQueueActionButton>
+                        </>
                       );
                     })()
                   ) : null}
@@ -1544,20 +1548,29 @@ export function FinanceDeskWorkQueues({
                       Close as rounding
                     </FinanceDeskQueueActionButton>
                   ) : payoutLineAccountGate(req).missing ? (
-                    <FinanceDeskQueueActionButton
-                      tone="violet"
-                      title={payoutLineAccountGate(req).problem}
-                      onClick={() =>
-                        setPayoutAccountRequest({
-                          target: "payment_request",
-                          requestId: String(req.requestID || req.id || ""),
-                          label: `${req.payeeName || "Payee"} on ${req.requestID || req.id}`,
-                          payeeName: req.payeeName,
-                        })
-                      }
-                    >
-                      Add payout account
-                    </FinanceDeskQueueActionButton>
+                    <>
+                      <FinanceDeskQueueActionButton
+                        tone="violet"
+                        title={payoutLineAccountGate(req).problem}
+                        onClick={() =>
+                          setPayoutAccountRequest({
+                            target: "payment_request",
+                            requestId: String(req.requestID || req.id || ""),
+                            label: `${req.payeeName || "Payee"} on ${req.requestID || req.id}`,
+                            payeeName: req.payeeName,
+                          })
+                        }
+                      >
+                        Add payout account
+                      </FinanceDeskQueueActionButton>
+                      <FinanceDeskQueueActionButton
+                        tone="teal"
+                        title="No bank account — pay from the Cash Office (name + voucher), or add the account to pay by bank."
+                        onClick={() => onPayRequest(String(req.requestID || req.id || ""))}
+                      >
+                        Pay cash
+                      </FinanceDeskQueueActionButton>
+                    </>
                   ) : (
                     <FinanceDeskQueueActionButton
                       tone="teal"
