@@ -719,6 +719,33 @@ async function fetchBankReconStatementReport(apiFetch, startDate, endDate, balan
   return { ok: true, report: data.report };
 }
 
+/**
+ * Treasury account statement — cash-book layout. Without an account id the server lists the branch's accounts;
+ * the user picks one by number. `endAt` (optional ISO) cuts the last day at a statement time.
+ * @returns {Promise<{ ok: true, book: object } | { ok: false, error?: string, cancelled?: boolean }>}
+ */
+async function fetchTreasuryCashBookReport(apiFetch, startDate, endDate, { accountId, endAt, mode, ask = (t) => window.prompt(t, '') } = {}) {
+  let id = Number(accountId) || 0;
+  if (!id) {
+    const list = await apiFetch('/api/reports/treasury-cash-book');
+    if (!list.ok || !list.data?.ok) return { ok: false, error: list.data?.error || 'Could not load treasury accounts.' };
+    const accounts = list.data.accounts || [];
+    if (!accounts.length) return { ok: false, error: 'No treasury accounts in this branch.' };
+    const text = accounts.map((a) => `${a.id} = ${a.name}${a.bankName ? ` (${a.bankName})` : ''}`).join('\n');
+    const pick = Number(String(ask(`Which account? Type its number:\n${text}`) ?? '').trim());
+    if (!pick) return { ok: false, cancelled: true };
+    if (!accounts.some((a) => Number(a.id) === pick)) return { ok: false, error: `Account ${pick} is not in the list.` };
+    id = pick;
+  }
+  const q = new URLSearchParams({ accountId: String(id), startDate, endDate });
+  if (endAt) q.set('endAt', endAt);
+  // Server default: confirmed movements (balance of record); "all" adds receipts awaiting confirmation.
+  if (mode === 'all') q.set('mode', 'all');
+  const { ok, data } = await apiFetch(`/api/reports/treasury-cash-book?${q.toString()}`);
+  if (!ok || !data?.ok) return { ok: false, error: data?.error || 'Could not load the treasury account statement.' };
+  return { ok: true, book: data.book };
+}
+
 function downloadRows(name, rows, fmt) {
   const safe = name.toLowerCase().replace(/\s+/g, '-');
   if (!rows.length) return;
@@ -766,6 +793,7 @@ export {
   purchaseRegisterHasRows,
   fetchPurchaseRegisterReport,
   fetchBankReconStatementReport,
+  fetchTreasuryCashBookReport,
   fetchConversionSummaryReport,
   conversionSummaryExcelRows,
   fetchCoilStockTieOutReport,
