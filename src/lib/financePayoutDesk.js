@@ -1,3 +1,5 @@
+import { payoutAccountIsMissing, payoutAccountProblem } from '../shared/lib/payoutAccountGuard.js';
+
 /**
  * Cashier and desk payout queues: filter, sort, and aging.
  * Amounts stay on the row; this module only orders and summarises them.
@@ -171,4 +173,25 @@ export function nextPayoutSort(prevKey, prevDir, key) {
   }
   const dir = key === 'payee' || key === 'type' ? 'asc' : 'desc';
   return { key, dir };
+}
+
+/**
+ * Finance Phase A (A1): a desk payout line can be paid only when its payee has a bank and a
+ * 10-digit account. A refund is paid as one request, so a payee with a missing account on the
+ * same refund also blocks the other payees' Pay buttons.
+ * @param {{ payeeBankName?: string, payeeAccountNo?: string }} line
+ * @param {Array<{ payeeBankName?: string, payeeAccountNo?: string, recipientLabel?: string, queueKey?: string }>} [siblings]
+ * @returns {{ missing: boolean, problem: string, blockedBy: string }}
+ */
+export function payoutLineAccountGate(line, siblings = []) {
+  const problem = payoutAccountProblem({ bankName: line?.payeeBankName, accountNo: line?.payeeAccountNo });
+  if (problem) return { missing: true, problem, blockedBy: '' };
+  const other = (siblings || []).find(
+    (s) =>
+      s &&
+      s.queueKey !== line?.queueKey &&
+      (Number(s.amountDueNgn) || 0) > 0 &&
+      payoutAccountIsMissing({ bankName: s.payeeBankName, accountNo: s.payeeAccountNo })
+  );
+  return { missing: false, problem: '', blockedBy: other ? String(other.recipientLabel || other.payeeName || 'Another payee') : '' };
 }

@@ -11,6 +11,7 @@ import {
   sortPayoutQueue,
   summarizePayoutDue,
 } from './financePayoutDesk.js';
+import { payoutLineAccountGate } from './financePayoutDesk.js';
 
 const today = new Date('2026-09-29T12:00:00Z');
 
@@ -125,5 +126,21 @@ describe('financePayoutDesk', () => {
     expect(refundLineReadyNgn({ amountDueNgn: 50_000, parentRefund: { payoutHold: false } })).toBe(50_000);
     expect(haulageReadyNgn({ outstandingNgn: 10_000, transportPayoutHold: true })).toBe(0);
     expect(haulageReadyNgn({ outstandingNgn: 10_000, transportPayoutHold: false })).toBe(10_000);
+  });
+});
+
+describe('payoutLineAccountGate (A1)', () => {
+  const ok = { queueKey: 'customer-0', payeeBankName: 'GTBank', payeeAccountNo: '0123456789', amountDueNgn: 5000 };
+  const bad = { queueKey: 'staff-1', recipientLabel: 'Driver Ali', payeeBankName: '', payeeAccountNo: '000', amountDueNgn: 4000 };
+
+  it('flags a line whose payee has no usable account', () => {
+    expect(payoutLineAccountGate(bad).missing).toBe(true);
+    expect(payoutLineAccountGate({ payeeBankName: 'GTBank', payeeAccountNo: '—' }).missing).toBe(true);
+    expect(payoutLineAccountGate(ok).missing).toBe(false);
+  });
+
+  it('blocks a payable line when a sibling payee on the same refund is missing an account', () => {
+    expect(payoutLineAccountGate(ok, [ok, bad]).blockedBy).toBe('Driver Ali');
+    expect(payoutLineAccountGate(ok, [ok, { ...bad, amountDueNgn: 0 }]).blockedBy).toBe('');
   });
 });

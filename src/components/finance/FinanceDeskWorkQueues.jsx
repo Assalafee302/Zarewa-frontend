@@ -105,6 +105,9 @@ import {
 
 import { FinanceTreasuryAwaitingPayoutQueues } from "./FinanceTreasuryAwaitingPayoutQueues";
 import { OrphanHaulageDeskPanel } from "./OrphanHaulageDeskPanel";
+import { AddPayoutAccountModal } from "./AddPayoutAccountModal";
+import { flattenRefundDeskQueue } from "../../lib/refundCashierDetail";
+import { payoutLineAccountGate } from "../../lib/financePayoutDesk.js";
 import {
   findQuotationByRef,
   quotationColourGaugeLabel,
@@ -236,6 +239,7 @@ export function FinanceDeskWorkQueues({
   const { show: showToast } = useToast();
   const [roundingBusyId, setRoundingBusyId] = useState("");
   const [deskActionBusyId, setDeskActionBusyId] = useState("");
+  const [payoutAccountRequest, setPayoutAccountRequest] = useState(null);
 
   const closeRemainderAsRounding = async (kind, id) => {
     const key = `${kind}:${id}`;
@@ -1362,14 +1366,39 @@ export function FinanceDeskWorkQueues({
                       >
                         Close as rounding
                       </FinanceDeskQueueActionButton>
-                    ) : (
-                      <FinanceDeskQueueActionButton
-                        tone="sky"
-                        onClick={() => onPayRefund(String(line.refundID || ''), line.queueKey)}
-                      >
-                        Pay
-                      </FinanceDeskQueueActionButton>
-                    )
+                    ) : (() => {
+                      const gate = payoutLineAccountGate(line, flattenRefundDeskQueue([line.parentRefund]));
+                      if (gate.missing) {
+                        return (
+                          <FinanceDeskQueueActionButton
+                            tone="violet"
+                            title={gate.problem}
+                            onClick={() =>
+                              setPayoutAccountRequest({
+                                target: "refund",
+                                refundId: String(line.refundID || ""),
+                                partyKind: line.recipientKind === "associated_staff" ? "associated_staff" : "customer",
+                                partyId: String(line.partyId || ""),
+                                label: `${line.recipientLabel || "Payee"} on ${line.refundID}`,
+                                payeeName: line.payeeName,
+                              })
+                            }
+                          >
+                            Add payout account
+                          </FinanceDeskQueueActionButton>
+                        );
+                      }
+                      return (
+                        <FinanceDeskQueueActionButton
+                          tone="sky"
+                          disabled={Boolean(gate.blockedBy)}
+                          title={gate.blockedBy ? `Add the payout account for ${gate.blockedBy} first. The refund is paid as one request.` : undefined}
+                          onClick={() => onPayRefund(String(line.refundID || ''), line.queueKey)}
+                        >
+                          Pay
+                        </FinanceDeskQueueActionButton>
+                      );
+                    })()
                   ) : null}
                   {onViewRefund ? (
                     <FinanceDeskQueueActionButton
@@ -1401,6 +1430,21 @@ export function FinanceDeskWorkQueues({
                       }
                     >
                       Close as rounding
+                    </FinanceDeskQueueActionButton>
+                  ) : payoutLineAccountGate(req).missing ? (
+                    <FinanceDeskQueueActionButton
+                      tone="violet"
+                      title={payoutLineAccountGate(req).problem}
+                      onClick={() =>
+                        setPayoutAccountRequest({
+                          target: "payment_request",
+                          requestId: String(req.requestID || req.id || ""),
+                          label: `${req.payeeName || "Payee"} on ${req.requestID || req.id}`,
+                          payeeName: req.payeeName,
+                        })
+                      }
+                    >
+                      Add payout account
                     </FinanceDeskQueueActionButton>
                   ) : (
                     <FinanceDeskQueueActionButton
@@ -1447,6 +1491,22 @@ export function FinanceDeskWorkQueues({
                     >
                       On hold
                     </span>
+                  ) : payoutLineAccountGate(row).missing ? (
+                    <FinanceDeskQueueActionButton
+                      tone="violet"
+                      title={payoutLineAccountGate(row).problem}
+                      onClick={() =>
+                        setPayoutAccountRequest({
+                          target: "transport_agent",
+                          transportAgentId: String(row.transportAgentId || ""),
+                          poId,
+                          label: `Haulier ${row.transportAgentName || ""} on ${poId}`.trim(),
+                          payeeName: row.payeeName || row.transportAgentName,
+                        })
+                      }
+                    >
+                      Add payout account
+                    </FinanceDeskQueueActionButton>
                   ) : (
                     <FinanceDeskQueueActionButton tone="sky" onClick={() => onPayPoTransport(row)}>
                       Pay
@@ -1494,6 +1554,16 @@ export function FinanceDeskWorkQueues({
                 onLinkAsHaulage={linkRequestAsHaulage}
               />
             </FinanceTreasuryAwaitingPayoutQueues>
+            <AddPayoutAccountModal
+              request={payoutAccountRequest}
+              onClose={() => setPayoutAccountRequest(null)}
+              onSaved={(data) => {
+                setPayoutAccountRequest(null);
+                applyDeskDelta(data);
+                void ws.refreshDomain?.("finance");
+                showToast("Payout account saved. Pay is now available.", { variant: "success" });
+              }}
+            />
           </div>
 
           <CashierSecondaryServicesPanel

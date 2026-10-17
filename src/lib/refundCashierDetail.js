@@ -409,6 +409,7 @@ export function refundCashierSplitBreakdown(refund) {
       {
         recipientKind: 'customer',
         recipientLabel: String(refund?.customer ?? refund?.payeeName ?? 'Customer').trim() || 'Customer',
+        partyId: quoteCustomerId,
         grossNgn: approvedNgn,
         companyDeductionNgn: 0,
         unclearedReceiptOffsetNgn: 0,
@@ -459,6 +460,9 @@ export function refundCashierSplitBreakdown(refund) {
     return {
       recipientKind: isStaff ? 'associated_staff' : 'customer',
       recipientLabel,
+      partyId: isStaff
+        ? String(row?.recipientAssociatedStaffID || row?.payoutAccount?.partyId || '').trim()
+        : String(row?.recipientCustomerID || row?.payoutAccount?.partyId || quoteCustomerId || '').trim(),
       grossNgn: roundRefundStaffMoney(row?.grossNgn ?? row?.amountNgn),
       companyDeductionNgn: roundRefundStaffMoney(row?.companyDeductionNgn),
       unclearedReceiptHoldNgn: roundRefundStaffMoney(row?.unclearedReceiptHoldNgn),
@@ -566,6 +570,7 @@ function buildRefundPayeePayoutLines(
       parentRefund: refund,
       recipientKind: row.recipientKind,
       recipientLabel: row.recipientLabel,
+      partyId: row.partyId || '',
       payeeName,
       payeeBankName,
       payeeAccountNo,
