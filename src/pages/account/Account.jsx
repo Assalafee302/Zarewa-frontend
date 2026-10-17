@@ -179,6 +179,7 @@ import {
 } from '../../shared/lib/receiptPaymentConfirmQueue.js';
 
 import { AccountPageContext } from './AccountPageContext.jsx';
+import { askOverQuoteReason } from '../../lib/financeManagerOverride.js';
 import { lazyWithRetry } from '../../lib/lazyWithRetry';
 
 const AccountTabPanels = lazyWithRetry(() => import('./AccountTabPanels.jsx').then((m) => ({ default: m.AccountTabPanels })), {
@@ -1495,17 +1496,30 @@ const Account = () => {
       setTreasuryPayoutSubmitting(true);
       try {
         for (const line of validLines) {
-          const { ok, data } = await apiFetch(`/api/purchase-orders/${encodeURIComponent(poId)}/post-transport`, {
-            method: 'POST',
-            body: JSON.stringify({
-              treasuryAccountId: line.treasuryAccountId,
-              amountNgn: line.amountNgn,
-              reference: line.reference || poId,
-              dateISO: line.dateISO,
-              note: requestPayNote.trim() || 'PO transport / haulage',
-              createdBy: activeActorLabel,
-            }),
-          });
+          const haulageBody = {
+            treasuryAccountId: line.treasuryAccountId,
+            amountNgn: line.amountNgn,
+            reference: line.reference || poId,
+            dateISO: line.dateISO,
+            note: requestPayNote.trim() || 'PO transport / haulage',
+            createdBy: activeActorLabel,
+          };
+          const postHaulage = (body) =>
+            apiFetch(`/api/purchase-orders/${encodeURIComponent(poId)}/post-transport`, {
+              method: 'POST',
+              body: JSON.stringify(body),
+            });
+          let { ok, data } = await postHaulage(haulageBody);
+          if (!ok && data?.code === 'PAYOUT_ABOVE_QUOTE') {
+            // A5: above the quoted fee — BM/OM approves the excess with a reason; it posts as its own line.
+            const answer = askOverQuoteReason(data, ws?.session?.user?.roleKey);
+            if (answer.error) {
+              showToast(answer.error, { variant: 'error' });
+              void ws.refreshDomain?.('finance');
+              return;
+            }
+            ({ ok, data } = await postHaulage({ ...haulageBody, overQuoteReason: answer.reason }));
+          }
           if (!ok || !data?.ok) {
             showToast(data?.error || 'Could not record transport treasury payment.', { variant: 'error' });
             void ws.refreshDomain?.('finance');
