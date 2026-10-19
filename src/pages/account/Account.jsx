@@ -123,6 +123,7 @@ import { AccountingRegisterSettlementPayModal } from '../../components/finance/A
 import { RefundCashierDetailModal } from '../../components/finance/RefundCashierDetailModal.jsx';
 import { RefundPayoutModal } from '../../components/finance/RefundPayoutModal.jsx';
 import { PaymentRequestPayoutModal } from '../../components/finance/PaymentRequestPayoutModal.jsx';
+import { payLinesUseCashOffice } from '../../lib/cashOfficePayout.js';
 import { ExpenseCashierDetailModal } from '../../components/finance/ExpenseCashierDetailModal.jsx';
 import { resolveExpenseCashierTarget } from '../../lib/expenseCashierDetail.js';
 import { StaffRecoveryCashierModal } from '../../components/finance/StaffRecoveryCashierModal.jsx';
@@ -179,6 +180,9 @@ import {
 } from '../../shared/lib/receiptPaymentConfirmQueue.js';
 
 import { AccountPageContext } from './AccountPageContext.jsx';
+import { askOverQuoteReason } from '../../lib/financeManagerOverride.js';
+import { customerOwedCreditLine, customerOwedCreditSummary } from '../../lib/customerOwedCredit.js';
+import { UseRefundCreditModal } from '../../components/finance/UseRefundCreditModal.jsx';
 import { lazyWithRetry } from '../../lib/lazyWithRetry';
 
 const AccountTabPanels = lazyWithRetry(() => import('./AccountTabPanels.jsx').then((m) => ({ default: m.AccountTabPanels })), {
@@ -322,6 +326,11 @@ const Account = () => {
   /** Cash due last written because refund fund was ticked — used to restore the receipt when unticked. */
   const refundAppliedCashDueRef = useRef(null);
   const [cashierRefundCreditInfo, setCashierRefundCreditInfo] = useState(null);
+  /** A6: Refund Credit App opened after "Use refund credit instead" cancelled the cash receipt. */
+  const [useRefundCreditTarget, setUseRefundCreditTarget] = useState(null);
+  const [useRefundCreditBusy, setUseRefundCreditBusy] = useState(false);
+  /** Owner D2: Cash Office payouts carry recipient name + voucher reference. */
+  const [cashOfficePay, setCashOfficePay] = useState({ recipientName: '', voucherReference: '' });
   const [cashierRefundCreditLoading, setCashierRefundCreditLoading] = useState(false);
   /** Expanded when refund fund can cover this receipt. The use-refund box starts unticked. */
   const [cashierRefundCreditDetailsOpen, setCashierRefundCreditDetailsOpen] = useState(false);
@@ -1100,6 +1109,7 @@ const Account = () => {
           setSelectedPayment(null);
           setRequestPayLines([]);
           setRequestPayNote('');
+          setCashOfficePay({ recipientName: '', voucherReference: '' });
         }
         void ws.refreshDomain?.('finance');
         showToast(
@@ -1228,6 +1238,9 @@ const Account = () => {
             paymentLines: tillLines,
             releasePartnerWallet: releaseWallet,
             treasuryAccountId: releaseWallet ? treasuryAccountId : undefined,
+            ...(payLinesUseCashOffice(tillLines, bankAccountsForPayout)
+              ? { cashRecipientName: cashOfficePay.recipientName.trim(), voucherReference: cashOfficePay.voucherReference.trim() }
+              : {}),
           }),
         });
         if (!ok || !data?.ok) {
@@ -1249,6 +1262,7 @@ const Account = () => {
         setRefundPaidBy('');
         setRefundPayLines([]);
         setRefundPaymentNote('');
+        setCashOfficePay({ recipientName: '', voucherReference: '' });
         setRefundReleaseWallet(true);
         showToast(
           releaseWallet && tillLines.length === 0
@@ -1257,7 +1271,9 @@ const Account = () => {
               ? `Refund ${rid} released (wallet + till).`
               : refundPayTotalNgn >= outstanding
                 ? `Refund ${rid} fully paid.`
-                : `Refund ${rid} part-paid. Treasury updated.`
+                : Number(data?.roundingClosedNgn) > 0
+                  ? `Refund ${rid} paid. ₦${Math.round(Number(data.roundingClosedNgn)).toLocaleString('en-NG')} remainder closed as bank fee/rounding.`
+                  : `Refund ${rid} part-paid. Treasury updated.`
         );
         return;
       } finally {
@@ -1495,17 +1511,30 @@ const Account = () => {
       setTreasuryPayoutSubmitting(true);
       try {
         for (const line of validLines) {
-          const { ok, data } = await apiFetch(`/api/purchase-orders/${encodeURIComponent(poId)}/post-transport`, {
-            method: 'POST',
-            body: JSON.stringify({
-              treasuryAccountId: line.treasuryAccountId,
-              amountNgn: line.amountNgn,
-              reference: line.reference || poId,
-              dateISO: line.dateISO,
-              note: requestPayNote.trim() || 'PO transport / haulage',
-              createdBy: activeActorLabel,
-            }),
-          });
+          const haulageBody = {
+            treasuryAccountId: line.treasuryAccountId,
+            amountNgn: line.amountNgn,
+            reference: line.reference || poId,
+            dateISO: line.dateISO,
+            note: requestPayNote.trim() || 'PO transport / haulage',
+            createdBy: activeActorLabel,
+          };
+          const postHaulage = (body) =>
+            apiFetch(`/api/purchase-orders/${encodeURIComponent(poId)}/post-transport`, {
+              method: 'POST',
+              body: JSON.stringify(body),
+            });
+          let { ok, data } = await postHaulage(haulageBody);
+          if (!ok && data?.code === 'PAYOUT_ABOVE_QUOTE') {
+            // A5: above the quoted fee — BM/OM approves the excess with a reason; it posts as its own line.
+            const answer = askOverQuoteReason(data, ws?.session?.user?.roleKey);
+            if (answer.error) {
+              showToast(answer.error, { variant: 'error' });
+              void ws.refreshDomain?.('finance');
+              return;
+            }
+            ({ ok, data } = await postHaulage({ ...haulageBody, overQuoteReason: answer.reason }));
+          }
           if (!ok || !data?.ok) {
             showToast(data?.error || 'Could not record transport treasury payment.', { variant: 'error' });
             void ws.refreshDomain?.('finance');
@@ -1524,6 +1553,7 @@ const Account = () => {
       setSelectedPayment(null);
       setRequestPayLines([]);
       setRequestPayNote('');
+      setCashOfficePay({ recipientName: '', voucherReference: '' });
       showToast(
         fullyPaid
           ? `PO ${poId} transport fee fully paid from treasury.`
@@ -1545,6 +1575,9 @@ const Account = () => {
               body: JSON.stringify({
                 note: requestPayNote.trim(),
                 paymentLines: validLines,
+                ...(payLinesUseCashOffice(validLines, bankAccountsForPayout)
+                  ? { cashRecipientName: cashOfficePay.recipientName.trim(), voucherReference: cashOfficePay.voucherReference.trim() }
+                  : {}),
               }),
             },
             'payment_request_pay'
@@ -1576,6 +1609,7 @@ const Account = () => {
     setSelectedPayment(null);
     setRequestPayLines([]);
     setRequestPayNote('');
+    setCashOfficePay({ recipientName: '', voucherReference: '' });
     showToast(
       fullyPaid
         ? `Payment request ${selectedPayment.id} fully paid from treasury.`
@@ -2401,7 +2435,8 @@ const Account = () => {
       }
       setCashierRefundCreditInfo(eligible);
       setSelectedRefundSourceIds(choice.sourceIds);
-      setApplyRefundOnConfirm(choice.apply);
+      // A6: Confirm stays the primary action — the credit route is never pre-selected.
+      setApplyRefundOnConfirm(false);
       setCashierRefundCreditDetailsOpen(choice.detailsOpen);
     })().catch(() => {
       if (!cancelled) {
@@ -2539,6 +2574,56 @@ const Account = () => {
     },
     [handleAccountTabChange]
   );
+
+  /** A6: what we owe this customer, shown as an information line on the confirm card. */
+  const receiptOwedCredit = useMemo(
+    () => customerOwedCreditSummary(cashierRefundCreditInfo),
+    [cashierRefundCreditInfo]
+  );
+
+  /**
+   * A6 secondary action, for a receipt with no bank payment: cancel the cash receipt (audited,
+   * in the cashier's name) and open the Refund Credit App for the same quotation.
+   */
+  const cancelReceiptForRefundCredit = useCallback(async () => {
+    const row = receiptFinanceRow;
+    if (!row?.id || useRefundCreditBusy) return;
+    if (!ws?.canMutate) {
+      showToast('Connect to the API server first.', { variant: 'error' });
+      return;
+    }
+    const ok = await appConfirm({
+      message: `No bank payment for ${row.id}? This cancels the ${formatNgn(row.amountNgn)} cash receipt (audited, in your name) and opens the Refund Credit App for ${row.quotationRef}.`,
+      variant: 'danger',
+    });
+    if (!ok) return;
+    setUseRefundCreditBusy(true);
+    try {
+      const { ok: apiOk, data } = await apiFetch(
+        `/api/sales-receipts/${encodeURIComponent(row.id)}/use-refund-credit-instead`,
+        { method: 'POST', body: JSON.stringify({}) }
+      );
+      if (!apiOk || !data?.ok) {
+        showToast(data?.error || 'Could not cancel the receipt for refund credit.', { variant: 'error' });
+        return;
+      }
+      if (!(data?.delta && ws?.applyWriteDelta?.(data.delta))) {
+        void ws?.refreshDomain?.('finance');
+        void ws?.refreshDomain?.('sales');
+      }
+      setReceiptFinanceRow(null);
+      setReceiptFinanceFocusMovementId(null);
+      setUseRefundCreditTarget({
+        customerId: data.customerId || row.customerID,
+        customerName: row.customer,
+        quotationRef: data.quotationRef || row.quotationRef,
+        amountNgn: data.cancelledAmountNgn || row.amountNgn,
+      });
+      showToast(`${row.id} cancelled — apply the refund credit to ${row.quotationRef}.`, { variant: 'info' });
+    } finally {
+      setUseRefundCreditBusy(false);
+    }
+  }, [receiptFinanceRow, useRefundCreditBusy, ws, showToast]);
 
   const reverseReceiptFinanceRow = useCallback(async () => {
     const row = receiptFinanceRow;
@@ -4971,6 +5056,7 @@ const Account = () => {
           setRefundPaidBy('');
           setRefundPayLines([]);
           setRefundPaymentNote('');
+          setCashOfficePay({ recipientName: '', voucherReference: '' });
         }}
         refund={refundPayTarget}
         selectedPayeeKey={refundPayPayeeKey}
@@ -4991,6 +5077,8 @@ const Account = () => {
         isSubmitting={treasuryPayoutSubmitting}
         onConfirmPay={confirmRefundPaid}
         onLiftHold={liftRefundPayoutHold}
+        cashOffice={cashOfficePay}
+        onCashOfficeChange={setCashOfficePay}
         userMaySetRefundPayoutHold={userMaySetRefundPayoutHold(ws?.session?.user)}
       />
 
@@ -5002,6 +5090,7 @@ const Account = () => {
           setSelectedPayment(null);
           setRequestPayLines([]);
           setRequestPayNote('');
+          setCashOfficePay({ recipientName: '', voucherReference: '' });
         }}
         selectedPayment={selectedPayment}
         bankAccounts={bankAccounts}
@@ -5020,6 +5109,8 @@ const Account = () => {
         cancelPayRequestBusyId={cancelPayRequestBusyId}
         onCancelPaymentRequest={cancelPaymentRequestBeforePay}
         onConfirmPay={confirmProcessPaymentModal}
+        cashOffice={cashOfficePay}
+        onCashOfficeChange={setCashOfficePay}
       />
 
       <ModalFrame
@@ -5509,6 +5600,14 @@ const Account = () => {
                   </p>
                 ) : null;
               })()}
+              {!receiptFinanceRow.financeReconciliationSavedAtISO && customerOwedCreditLine(receiptOwedCredit) ? (
+                <p
+                  className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-950"
+                  data-testid="receipt-owed-credit-info"
+                >
+                  {customerOwedCreditLine(receiptOwedCredit)}
+                </p>
+              ) : null}
               {(() => {
                 const allSettleSplits = receiptLedgerReceiptTreasurySplits(
                   receiptFinanceRow,
@@ -6085,6 +6184,20 @@ const Account = () => {
                 </span>
               </label>
               {!receiptFinanceRow?.financeReconciliationSavedAtISO &&
+              receiptOwedCredit.totalNgn > 0 &&
+              (ws?.hasPermission?.('finance.pay') || ws?.hasPermission?.('finance.post')) ? (
+                <button
+                  type="button"
+                  disabled={receiptFinanceBusy || useRefundCreditBusy || !ws?.canMutate}
+                  onClick={() => void cancelReceiptForRefundCredit()}
+                  title="Only when no bank payment exists: cancels this cash receipt and opens the Refund Credit App for this quotation."
+                  className="w-full rounded-xl border border-sky-200 bg-white py-2.5 text-ui-xs font-bold uppercase tracking-wide text-sky-900 hover:bg-sky-50 disabled:opacity-50"
+                  data-testid="use-refund-credit-instead"
+                >
+                  {useRefundCreditBusy ? 'Cancelling receipt…' : 'Use refund credit instead'}
+                </button>
+              ) : null}
+              {!receiptFinanceRow?.financeReconciliationSavedAtISO &&
               (ws?.hasPermission?.('finance.reverse') || ws?.hasPermission?.('finance.pay')) ? (
                 <button
                   type="button"
@@ -6127,6 +6240,20 @@ const Account = () => {
           ) : null}
         </div>
       </ModalFrame>
+
+      <UseRefundCreditModal
+        target={useRefundCreditTarget}
+        onClose={() => setUseRefundCreditTarget(null)}
+        onApplied={(data) => {
+          const target = useRefundCreditTarget;
+          setUseRefundCreditTarget(null);
+          if (!(data?.delta && ws?.applyWriteDelta?.(data.delta))) {
+            void ws?.refreshDomain?.('finance');
+            void ws?.refreshDomain?.('sales');
+          }
+          showToast(`Refund credit applied to ${target?.quotationRef || 'the quotation'}.`, { variant: 'success' });
+        }}
+      />
 
       <ModalFrame isOpen={Boolean(reclassifyTarget)} onClose={closeReclassifyModal}>
         <div className="space-y-4">
