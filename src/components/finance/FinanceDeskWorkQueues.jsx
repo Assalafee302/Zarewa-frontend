@@ -96,6 +96,10 @@ import { paymentRequestOutstandingNgn } from "../../lib/financeTreasuryPayoutQue
 import { FinanceDeskTreasuryAccountGrid } from "./FinanceDeskTreasuryAccountGrid";
 
 import { HangingCustomerRefundChip, RefundFundAppliedChip } from "./HangingCustomerRefundHint";
+import { hangingRefundOpenAmountNgn } from "../../lib/refundsStore";
+import { hangingRefundAttention, receiptAttention } from "../../lib/cashierAttention.js";
+import { AttentionBanner } from "../attention/AttentionBanner";
+import { useSearchParams } from "react-router-dom";
 import { refundFundAppliedByQuotationRef } from "../../lib/refundFundApply.js";
 
 import {
@@ -595,6 +599,29 @@ export function FinanceDeskWorkQueues({
       ),
     [receiptsWithCuttingMeta],
   );
+
+  // Deep link `?attention=<rule>:<receipt id>` opens the desk on that receipt with its problem stated.
+  const [searchParams] = useSearchParams();
+  const focusAttentionId = String(searchParams.get("attention") || "").trim();
+  const focusedReceipt = useMemo(() => {
+    if (!focusAttentionId) return null;
+    const cut = focusAttentionId.indexOf(":");
+    const ruleId = cut > 0 ? focusAttentionId.slice(0, cut) : "";
+    const rid = cut > 0 ? focusAttentionId.slice(cut + 1) : "";
+    const list =
+      ruleId === "receipt_no_bank_line"
+        ? bankCheckReceiptsAll
+        : ruleId === "receipt_under_investigation"
+          ? investigationReceiptsAll
+          : [];
+    const r = list.find((x) => String(x.id) === rid);
+    return r ? { receipt: r, attention: receiptAttention(r, ruleId) } : null;
+  }, [focusAttentionId, bankCheckReceiptsAll, investigationReceiptsAll]);
+  useEffect(() => {
+    if (!focusedReceipt) return;
+    const el = document.querySelector(`[data-attention-id="${CSS.escape(focusAttentionId)}"]`);
+    el?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+  }, [focusedReceipt, focusAttentionId]);
 
   const pendingReceiptsAll = useMemo(
     () =>
@@ -1265,7 +1292,14 @@ export function FinanceDeskWorkQueues({
                             >
                               {cuttingChipLabel}
                             </span>
-                            {hanging ? <HangingCustomerRefundChip indicator={hanging} /> : null}
+                            {hanging ? (
+                              <HangingCustomerRefundChip
+                                indicator={hanging}
+                                sentence={
+                                  hangingRefundAttention(hanging, r.customer || r.customerID, hangingRefundOpenAmountNgn)?.sentence || ''
+                                }
+                              />
+                            ) : null}
                             {refundFund ? <RefundFundAppliedChip appliedNgn={refundFund.appliedNgn} /> : null}
                           </div>
                         }
@@ -1309,6 +1343,16 @@ export function FinanceDeskWorkQueues({
                 </p>
               )}
 
+              {focusedReceipt ? (
+                <AttentionBanner
+                  attention={focusedReceipt.attention}
+                  hideActions={["ask_cashier"]}
+                  onAction={(a) => {
+                    if (a.id === "open") onViewReceipt?.(focusedReceipt.receipt);
+                  }}
+                />
+              ) : null}
+
               {bankCheckReceiptsAll.length > 0 ? (
                 <FinanceDeskColoredQueuePanel
                   theme="slate"
@@ -1322,6 +1366,8 @@ export function FinanceDeskWorkQueues({
                       <FinanceDeskColoredQueueRow
                         key={r.id}
                         theme="slate"
+                        attentionId={`receipt_no_bank_line:${r.id}`}
+                        highlighted={focusAttentionId === `receipt_no_bank_line:${r.id}`}
                         title={
                           <>
                             <span className="font-mono">{r.id}</span>
@@ -1331,7 +1377,7 @@ export function FinanceDeskWorkQueues({
                             </span>
                           </>
                         }
-                        meta={String(r.status || "No bank receipt")}
+                        meta={receiptAttention(r, "receipt_no_bank_line").sentence}
                         amount={formatNgn(r.amountNgn)}
                         actions={
                           onViewReceipt ? (
@@ -1361,6 +1407,8 @@ export function FinanceDeskWorkQueues({
                         <FinanceDeskColoredQueueRow
                           key={r.id}
                           theme="slate"
+                          attentionId={`receipt_under_investigation:${r.id}`}
+                          highlighted={focusAttentionId === `receipt_under_investigation:${r.id}`}
                           title={
                             <>
                               <span className="font-mono">{r.id}</span>
@@ -1370,7 +1418,7 @@ export function FinanceDeskWorkQueues({
                               </span>
                             </>
                           }
-                          meta={caseId ? caseId : "Suspended"}
+                          meta={receiptAttention(r, "receipt_under_investigation").sentence || caseId}
                           amount={formatNgn(r.amountNgn)}
                           actions={
                             onViewReceipt ? (

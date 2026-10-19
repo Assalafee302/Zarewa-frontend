@@ -27,6 +27,7 @@ import { FinanceDeskQueueActionButton } from './FinanceDeskColoredQueuePanel';
 import { RefundApplyToQuotationPanel } from './RefundApplyToQuotationPanel.jsx';
 import { RefundFundBalanceStrip } from './RefundFundBalanceStrip.jsx';
 import { RefundPayoutSituationPanel } from './RefundPayoutSituationPanel.jsx';
+import { DualControlAckPanel } from '../attention/DualControlAckPanel';
 
 function MoneyRow({ label, value, tone }) {
   const cls =
@@ -236,6 +237,12 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
             </div>
           </div>
         </div>
+
+        {refund.refundID ? (
+          <div className="px-5 pt-3">
+            <DualControlAckPanel refundId={refund.refundID} />
+          </div>
+        ) : null}
 
         {/* Tab Selector */}
         <div className="px-5 pt-3 bg-slate-50/50">

@@ -3,6 +3,7 @@ import { ArrowRight } from 'lucide-react';
 import { ExecPulseBar } from './ExecPulseBar';
 import { ExecMdKpiRow } from './ExecMdKpiRow';
 import { ExecWorkTrayPanel } from './ExecWorkTrayPanel';
+import { ExecAttentionList } from './ExecAttentionList';
 import { EXEC_PRIMARY_BTN } from '../../lib/execPageUi';
 
 export function ExecTodayTab({
@@ -13,6 +14,8 @@ export function ExecTodayTab({
   filteredWorkTrayItems,
   onReview,
   onOpenDecide,
+  legacy = false,
+  limits,
 }) {
   const kpis = data?.kpis || {};
   const mdOnly = data?.workTray?.summary?.mdOnly ?? 0;
@@ -28,6 +31,7 @@ export function ExecTodayTab({
         formatNgn={formatNgn}
         onOpenDecide={onOpenDecide}
       />
+      {legacy ? (
       <ExecWorkTrayPanel
         compact
         title="Needs your attention"
@@ -44,7 +48,16 @@ export function ExecTodayTab({
         onReview={onReview}
         formatNgn={formatNgn}
       />
-      {(data?.workTray?.summary?.total ?? 0) > 7 ? (
+      ) : (
+        <ExecAttentionList
+          items={filteredWorkTrayItems}
+          busy={busy}
+          onOpen={onReview}
+          formatNgn={formatNgn}
+          limits={limits}
+        />
+      )}
+      {legacy && (data?.workTray?.summary?.total ?? 0) > 7 ? (
         <div className="flex justify-center pt-2">
           <button type="button" onClick={onOpenDecide} className={EXEC_PRIMARY_BTN}>
             Open all approvals
