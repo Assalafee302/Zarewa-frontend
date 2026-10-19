@@ -15,6 +15,7 @@ const ACTION_ALIASES = {
   override: ['override'],
   reject: ['reject'],
   flag: ['flag'],
+  acknowledge: ['acknowledge'],
 };
 
 /**

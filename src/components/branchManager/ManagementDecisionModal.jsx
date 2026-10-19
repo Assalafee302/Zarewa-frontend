@@ -22,6 +22,7 @@ import MaterialIncidentDetailModal from '../material/MaterialIncidentDetailModal
 import { GovernanceDetailPanel } from './GovernanceDetailPanel';
 import { StaffPurchaseCreditManagerPreview } from '../management/StaffPurchaseCreditManagerPreview';
 import { AttentionBanner } from '../attention/AttentionBanner';
+import { DualControlAckPanel } from '../attention/DualControlAckPanel';
 import {
   attentionForRecord,
   attentionRecordKeyForIntel,
@@ -362,6 +363,15 @@ export function ManagementDecisionModal({
 
           <DecisionModalBody>
             {attentionBanner}
+            {selectedIntel?.kind === 'refund' || (selectedIntel?.kind === 'governance' && selectedIntel?.item?.refundId) ? (
+              <DualControlAckPanel
+                refundId={selectedIntel.refundId || selectedIntel.item?.refundId}
+                openKinds={(attention?.ruleIds || []).filter(
+                  (r) => r === 'same_requester_approver' || r === 'same_approver_payer'
+                )}
+                canAcknowledge={false}
+              />
+            ) : null}
             {selectedIntel?.kind === 'governance' ? (
               <GovernanceDetailPanel
                 item={selectedIntel.item || selectedIntel}

@@ -40,6 +40,8 @@ import { canApproveStaffPurchaseCredit, canRejectStaffPurchaseCredit, canMdAppro
 import { mdApprovePayrollRun } from '../../lib/hrExtended';
 import { formatPersonName } from '../../lib/formatPersonName';
 import { AttentionBanner } from '../attention/AttentionBanner';
+import { DualControlAckPanel } from '../attention/DualControlAckPanel';
+import { userMayAcknowledgeDualControlClient } from '../../lib/dualControlAck';
 import {
   attentionForItem,
   attentionForRecord,
@@ -872,6 +874,22 @@ export function ExecutiveWorkItemReviewModal({
                 />
               ) : null}
             </div>
+          ) : null}
+
+          {review.view === 'refund' && review.refundId ? (
+            <DualControlAckPanel
+              refundId={review.refundId}
+              openKinds={(attention?.ruleIds || []).filter(
+                (r) => r === 'same_requester_approver' || r === 'same_approver_payer'
+              )}
+              canAcknowledge={!readOnly && userMayAcknowledgeDualControlClient(ws?.session?.user)}
+              onAcknowledged={async () => {
+                showToast('Acknowledged — the warning leaves the list and stays on the refund record.', {
+                  variant: 'success',
+                });
+                await finish();
+              }}
+            />
           ) : null}
 
           {review.view === 'refund' ? (
