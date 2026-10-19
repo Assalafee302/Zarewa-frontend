@@ -140,12 +140,17 @@ export function FinanceDeskColoredQueueRow({
   amount,
   actions,
   testId,
+  attentionId,
+  highlighted = false,
 }) {
   const t = THEMES[theme] || THEMES.teal;
   return (
     <li
       data-testid={testId}
-      className={`rounded-lg border bg-white py-1.5 px-2.5 shadow-sm ${t.row}`}
+      data-attention-id={attentionId || undefined}
+      className={`rounded-lg border bg-white py-1.5 px-2.5 shadow-sm ${t.row} ${
+        highlighted ? 'ring-2 ring-rose-400 ring-offset-1' : ''
+      }`}
     >
       <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
         <div className="min-w-0 leading-tight flex-1">
