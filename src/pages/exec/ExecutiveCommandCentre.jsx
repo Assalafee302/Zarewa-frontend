@@ -580,14 +580,49 @@ export default function ExecutiveCommandCentre() {
     return workTrayItems;
   }, [workTrayFilter, workTrayItems]);
 
+  const legacyAttention = searchParams.get('legacy') === '1';
+  const attentionParam = String(searchParams.get('attention') || '').trim();
+  const governanceLimits = ws?.snapshot?.orgGovernanceLimits;
+
+  const setAttentionParam = useCallback(
+    (id) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (id) next.set('attention', id);
+          else next.delete('attention');
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
   const handleWorkTrayAction = (row) => {
     if (!row) return;
     if (execWorkItemOpensInModal(row.kind, row)) {
       setReviewItem(row);
+      setAttentionParam(row.id);
       return;
     }
     navigate(row.route || '/manager');
   };
+
+  // Deep link `?attention=<item id>` (bell, shared link, back button) opens that record on its problem.
+  useEffect(() => {
+    if (!attentionParam || busy || !data) return;
+    if (reviewItem?.id === attentionParam) return;
+    const row = workTrayItems.find((r) => r.id === attentionParam);
+    if (row && execWorkItemOpensInModal(row.kind, row)) {
+      setReviewItem(row);
+      return;
+    }
+    if (!row) {
+      showToast('That item is no longer waiting — it has been cleared or moved.', { variant: 'info' });
+      setAttentionParam('');
+    }
+  }, [attentionParam, busy, data, reviewItem?.id, workTrayItems, setAttentionParam, showToast]);
   const canManageReservePolicy = Boolean(data?.actor?.canManageReservePolicy);
 
   const openReservePolicyModal = useCallback(async () => {
@@ -791,6 +826,8 @@ export default function ExecutiveCommandCentre() {
           filteredWorkTrayItems={filteredWorkTrayItems.filter((row) => !row.summaryOnly)}
           onReview={handleWorkTrayAction}
           onOpenDecide={() => setActiveTab('decide')}
+          legacy={legacyAttention}
+          limits={governanceLimits}
         />
       ) : null}
 
@@ -806,6 +843,7 @@ export default function ExecutiveCommandCentre() {
           mdOnlyCount={workTrayMdOnlyCount}
           sharedCount={workTraySharedCount}
           onReview={handleWorkTrayAction}
+          legacy={legacyAttention}
         />
       ) : null}
 
@@ -1294,9 +1332,15 @@ export default function ExecutiveCommandCentre() {
                         {row.approvalTierLabel || (row.approvalTier === EXEC_APPROVAL_TIER_MD_ONLY ? 'MD only' : 'Shared')}
                       </span>
                     </div>
-                    <p className="mt-2 text-sm font-semibold capitalize text-slate-900">
-                      {row.kind?.replace(/_/g, ' ')}
-                    </p>
+                    {!legacyAttention && row.attention?.sentence ? (
+                      <p className="mt-2 text-sm font-semibold leading-snug text-slate-900">
+                        {row.attention.sentence}
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-sm font-semibold capitalize text-slate-900">
+                        {row.kind?.replace(/_/g, ' ')}
+                      </p>
+                    )}
                     <p className="mt-1 text-xs text-slate-600">
                       {row.branchName || '—'}
                       {row.amountNgn != null ? ` · ${formatNgn(row.amountNgn)}` : ''}
@@ -1321,7 +1365,7 @@ export default function ExecutiveCommandCentre() {
                 <tr className="border-b text-ui-xs font-black uppercase text-slate-500">
                   <th className="py-2 text-left">Priority</th>
                   <th className="py-2 text-left">Approver</th>
-                  <th className="py-2 text-left">Type</th>
+                  <th className="py-2 text-left">{legacyAttention ? 'Type' : "What's wrong"}</th>
                   <th className="py-2 text-left">Branch</th>
                   <th className="py-2 text-right">Amount</th>
                   <th className="py-2 text-left">Requested by</th>
@@ -1362,8 +1406,8 @@ export default function ExecutiveCommandCentre() {
                           {row.approvalTierLabel || (row.approvalTier === EXEC_APPROVAL_TIER_MD_ONLY ? 'MD only' : 'Shared')}
                         </span>
                       </td>
-                      <td className="py-2.5 font-semibold capitalize">
-                        {row.kind?.replace(/_/g, ' ')}
+                      <td className={`py-2.5 font-semibold ${!legacyAttention && row.attention?.sentence ? 'max-w-[26rem] pr-3 leading-snug' : 'capitalize'}`}>
+                        {!legacyAttention && row.attention?.sentence ? row.attention.sentence : row.kind?.replace(/_/g, ' ')}
                         {row.summaryOnly ? (
                           <span className="ml-1.5 text-ui-xs font-black uppercase text-slate-400">
                             Summary
@@ -1570,9 +1614,14 @@ export default function ExecutiveCommandCentre() {
       <ExecutiveWorkItemReviewModal
         item={reviewItem}
         isOpen={Boolean(reviewItem)}
-        onClose={() => setReviewItem(null)}
+        onClose={() => {
+          setReviewItem(null);
+          setAttentionParam('');
+        }}
         onCompleted={load}
         readOnly={readOnly}
+        legacy={legacyAttention}
+        relatedItems={workTrayItems}
       />
 
       <ExecCustomerSlideOver

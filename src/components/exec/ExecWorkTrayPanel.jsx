@@ -29,10 +29,13 @@ function workTrayActionLabel(row, readOnly) {
   return row.summaryOnly ? 'View' : canAct ? 'Review' : 'View';
 }
 
-function WorkTrayCard({ row, readOnly, onReview, formatNgn }) {
+function WorkTrayCard({ row, readOnly, onReview, formatNgn, legacy }) {
   const amount =
     row.amountNgn != null && typeof formatNgn === 'function' ? formatNgn(row.amountNgn) : '';
-  const meta = [row.branchName, amount, row.ageLabel || row.status].filter(Boolean).join(' · ');
+  const sentence = legacy ? '' : row.attention?.sentence || '';
+  const meta = [sentence ? row.title : '', row.branchName, amount, row.ageLabel || row.status]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <article
@@ -43,16 +46,21 @@ function WorkTrayCard({ row, readOnly, onReview, formatNgn }) {
       <div className="flex items-center gap-2.5">
         <div className="min-w-0 flex-1">
           <div className="mb-0.5 flex flex-wrap items-center gap-1">
-            <span className={compactChip(approvalTierChip(row.approvalTier))}>
-              {row.approvalTierLabel || 'Review'}
-            </span>
+            {legacy || row.approvalTierLabel ? (
+              <span className={compactChip(approvalTierChip(row.approvalTier))}>
+                {row.approvalTierLabel || 'Review'}
+              </span>
+            ) : null}
             <span className={compactChip(priorityChip(row.priority))}>{row.priority}</span>
             <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
               {execWorkItemKindLabel(row.kind)}
             </span>
           </div>
-          <h3 className="truncate text-[13px] font-semibold leading-snug text-slate-900">
-            {row.title || 'Review'}
+          <h3
+            className={`text-[13px] font-semibold leading-snug text-slate-900 ${sentence ? '' : 'truncate'}`}
+            data-testid="work-tray-sentence"
+          >
+            {sentence || row.title || 'Review'}
           </h3>
           {meta ? <p className="mt-0.5 truncate text-[11px] text-slate-500">{meta}</p> : null}
         </div>
@@ -86,6 +94,7 @@ export function ExecWorkTrayPanel({
   search = '',
   onSearchChange,
   formatNgn,
+  legacy = false,
 }) {
   const showFilters = !compact && typeof onWorkTrayFilterChange === 'function';
   const displayItems = compact ? items.slice(0, 7) : items;
@@ -160,6 +169,7 @@ export function ExecWorkTrayPanel({
             readOnly={readOnly}
             onReview={onReview}
             formatNgn={formatNgn}
+            legacy={legacy}
           />
         ))}
       </div>
@@ -170,7 +180,7 @@ export function ExecWorkTrayPanel({
             <tr className="border-b border-slate-200 text-ui-xs font-bold uppercase tracking-widest text-slate-400">
               <th className="py-2 text-left font-bold">Priority</th>
               <th className="py-2 text-left font-bold">Approver</th>
-              <th className="py-2 text-left font-bold">Type</th>
+              <th className="py-2 text-left font-bold">{legacy ? 'Type' : "What's wrong"}</th>
               <th className="py-2 text-left font-bold">Branch</th>
               <th className="py-2 text-right font-bold">Amount</th>
               <th className="py-2 text-left font-bold">Age</th>
@@ -189,12 +199,26 @@ export function ExecWorkTrayPanel({
                   <span className={`${EXEC_CHIP} ${priorityChip(row.priority)}`}>{row.priority}</span>
                 </td>
                 <td className="py-2.5">
-                  <span className={`${EXEC_CHIP} ${approvalTierChip(row.approvalTier)}`}>
-                    {row.approvalTierLabel || 'Review'}
-                  </span>
+                  {legacy || row.approvalTierLabel ? (
+                    <span className={`${EXEC_CHIP} ${approvalTierChip(row.approvalTier)}`}>
+                      {row.approvalTierLabel || 'Review'}
+                    </span>
+                  ) : null}
                 </td>
-                <td className="py-2.5 font-semibold text-slate-800">
-                  {execWorkItemKindLabel(row.kind)}
+                <td className="max-w-[28rem] py-2.5 pr-3 text-slate-800">
+                  {!legacy && row.attention?.sentence ? (
+                    <>
+                      <span className="block font-semibold leading-snug" data-testid="work-tray-sentence">
+                        {row.attention.sentence}
+                      </span>
+                      <span className="block text-[11px] text-slate-500">
+                        {execWorkItemKindLabel(row.kind)} · {row.title}
+                        {row.attention.flags?.length > 1 ? ` · +${row.attention.flags.length - 1} more` : ''}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="font-semibold">{execWorkItemKindLabel(row.kind)}</span>
+                  )}
                 </td>
                 <td className="py-2.5 text-slate-700">{row.branchName}</td>
                 <td className="py-2.5 text-right tabular-nums font-semibold text-slate-800">

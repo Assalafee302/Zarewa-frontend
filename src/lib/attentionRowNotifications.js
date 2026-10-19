@@ -1,3 +1,7 @@
+import { attentionDeepLink } from '../shared/lib/attentionRules.js';
+import { attentionForItem } from './attentionFocus.js';
+import { roleUsesExecutiveApprovalDesk } from './approvalDeskPaths.js';
+
 /** Max individual attention rows surfaced in the notification bell. */
 export const ATTENTION_ROW_ALERT_LIMIT = 3;
 
@@ -16,86 +20,35 @@ const ATTENTION_KIND_LABELS = {
 };
 
 /**
- * Deep link path for a scored manager attention row.
+ * Deep link path for a scored manager attention row (shared rule — same link the row and banner use).
  * @param {object} item
+ * @param {'manager' | 'exec'} [surface]
  */
-export function managementAttentionItemPath(item) {
-  const kind = String(item?.kind || '').trim();
-  if (kind === 'clearance' || kind === 'flagged' || kind === 'production' || kind === 'price_exception') {
-    const qref = String(item.quotationRef || item.title || '').trim();
-    return qref
-      ? `/manager?inbox=orders&quoteRef=${encodeURIComponent(qref)}${
-          kind === 'price_exception' ? '&review=price_exception' : ''
-        }`
-      : '/manager?inbox=orders';
-  }
-  if (kind === 'refunds') {
-    const rid = String(item.refundId || item.title || '').trim();
-    return rid
-      ? `/manager?inbox=cash_out&refundId=${encodeURIComponent(rid)}`
-      : '/manager?inbox=cash_out';
-  }
-  if (kind === 'register_settlement') {
-    const sid = String(item.settlementId || item.title || '').trim();
-    return sid
-      ? `/manager?inbox=withdrawals&settlementId=${encodeURIComponent(sid)}`
-      : '/manager?inbox=withdrawals';
-  }
-  if (kind === 'payments') {
-    const reqId = String(item.requestId || item.title || '').trim();
-    return reqId
-      ? `/manager?inbox=cash_out&requestId=${encodeURIComponent(reqId)}`
-      : '/manager?inbox=cash_out';
-  }
-  if (kind === 'conversions') {
-    const jid = String(item.jobId || item.title || '').trim();
-    return jid ? `/manager?inbox=qc&jobId=${encodeURIComponent(jid)}` : '/manager?inbox=qc';
-  }
-  if (kind === 'material') {
-    const mid = String(item?.title || item?.row?.id || '').trim();
-    return mid
-      ? `/manager?inbox=material&materialIncidentId=${encodeURIComponent(mid)}`
-      : '/manager?inbox=material';
-  }
-  if (kind === 'edit_approvals') return '/manager?inbox=edits';
-  if (kind === 'governance') {
-    if (item.integrityKind === 'missing_branch_manager' || item.row?.integrityKind === 'missing_branch_manager') {
-      return '/settings';
-    }
-    if (item.refundId) {
-      return `/manager?inbox=cash_out&refundId=${encodeURIComponent(String(item.refundId))}`;
-    }
-    if (item.jobId) {
-      return `/manager?inbox=qc&jobId=${encodeURIComponent(String(item.jobId))}`;
-    }
-    if (item.quotationRef) {
-      return `/manager?inbox=orders&quoteRef=${encodeURIComponent(String(item.quotationRef))}`;
-    }
-    return '/manager?inbox=governance';
-  }
-  return '/manager?inbox=attention';
+export function managementAttentionItemPath(item, surface = 'manager') {
+  return attentionDeepLink(item, surface);
 }
 
 /**
  * @param {object} item — row from GET /api/management/attention
+ * @param {{ roleKey?: string }} [opts]
  */
-export function managementAttentionItemToNotification(item) {
+export function managementAttentionItemToNotification(item, opts = {}) {
   const kind = String(item?.kind || '').trim();
   const label = ATTENTION_KIND_LABELS[kind] || 'Manager desk';
   const titleRef = String(item?.title || '').trim();
-  const subtitle = String(item?.subtitle || '').trim();
-  const reasons = Array.isArray(item?.reasons) ? item.reasons.filter(Boolean).join(' · ') : '';
+  const attention = attentionForItem(item);
   const severity =
-    kind === 'flagged' || kind === 'governance' ? 'critical' : kind === 'clearance' ? 'warning' : 'warning';
+    attention?.severity === 'critical' || kind === 'flagged' || kind === 'governance' ? 'critical' : 'warning';
+  const surface = roleUsesExecutiveApprovalDesk(opts.roleKey) ? 'exec' : 'manager';
 
   return {
     id: `attention-row:${item.id}`,
     category: 'manager',
     title: titleRef ? `${label}: ${titleRef}` : label,
-    detail: subtitle || reasons || 'Open on the manager desk.',
+    detail: attention?.sentence || String(item?.subtitle || '').trim() || 'Open on the manager desk.',
     severity,
     priority: Number(item.priority) || (severity === 'critical' ? 96 : 80),
-    path: managementAttentionItemPath(item),
+    path: managementAttentionItemPath(item, surface),
     state: {},
   };
 }
@@ -157,12 +110,15 @@ export function buildFallbackAttentionRows(snapshot) {
  * @param {{ managementAttention?: object | null; snapshot?: object | null; maxRows?: number }} params
  * @returns {boolean} true when row-level alerts were added
  */
-export function pushAttentionRowAlerts(items, { managementAttention, snapshot, maxRows = ATTENTION_ROW_ALERT_LIMIT }) {
+export function pushAttentionRowAlerts(
+  items,
+  { managementAttention, snapshot, roleKey, maxRows = ATTENTION_ROW_ALERT_LIMIT }
+) {
   const fromApi = Array.isArray(managementAttention?.items) ? managementAttention.items : [];
   const source = fromApi.length > 0 ? fromApi : buildFallbackAttentionRows(snapshot);
   if (source.length === 0) return false;
   for (const row of source.slice(0, maxRows)) {
-    items.push(managementAttentionItemToNotification(row));
+    items.push(managementAttentionItemToNotification(row, { roleKey }));
   }
   return true;
 }

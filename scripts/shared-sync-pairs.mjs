@@ -122,6 +122,7 @@ export const SHARED_SYNC_PAIRS = [
   ['shared/lib/staffShareBatch.js', 'src/shared/lib/staffShareBatch.js'],
   ['shared/lib/bankStatementFreshness.js', 'src/shared/lib/bankStatementFreshness.js'],
   ['shared/lib/overQuotePayout.js', 'src/shared/lib/overQuotePayout.js'],
+  ['shared/lib/attentionRules.js', 'src/shared/lib/attentionRules.js'],
 ];
 
 /** src/lib stubs that re-export the synced canonical file. Do not put logic here. */

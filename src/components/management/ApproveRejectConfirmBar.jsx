@@ -88,6 +88,7 @@ export function ApproveRejectConfirmBar({
             icon={Flag}
             label={rejectLabel}
             disabled={busy || !canReject}
+            attentionAction="reject"
             onClick={() => void onReject?.()}
           />
         ) : null}
@@ -96,6 +97,7 @@ export function ApproveRejectConfirmBar({
           icon={CheckCircle2}
           label={busy ? 'Recording…' : approveLabel}
           disabled={busy || !canApprove}
+          attentionAction="approve"
           onClick={handleApprove}
         />
       </div>

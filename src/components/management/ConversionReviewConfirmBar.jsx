@@ -94,6 +94,7 @@ export function ConversionReviewConfirmBar({
         icon={CheckCircle2}
         label={busy ? 'Recording…' : confirmLabel}
         disabled={busy || !remarkOk}
+        attentionAction="sign_off"
         onClick={handleConfirm}
       />
     </>

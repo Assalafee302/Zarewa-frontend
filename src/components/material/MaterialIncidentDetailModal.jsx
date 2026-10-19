@@ -63,6 +63,7 @@ export default function MaterialIncidentDetailModal({
   onPrint,
   onUpdated,
   externalBusy = false,
+  banner = null,
 }) {
   const { show: showToast } = useToast();
   const [incident, setIncident] = useState(null);
@@ -176,6 +177,7 @@ export default function MaterialIncidentDetailModal({
         </header>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5 text-sm">
+          {banner}
           {loading ? (
             <p className="text-sm text-slate-500">Loading incident…</p>
           ) : !incident ? (
