@@ -11,7 +11,7 @@ import {
   refundSplitTakesStaffDeduction,
 } from '../shared/lib/refundStaffAllocationDeduction.js';
 import { refundApprovedAmount, refundPublicStatusLabel } from './refundsStore.js';
-import { refundCashierMoneyStory } from './refundCashierDetail.js';
+import { refundCashierMoneyStory, refundPayoutRegisterLines } from './refundCashierDetail.js';
 
 /**
  * A5 landscape refund voucher — prints on the top half of A4 (cut A4 in two).
@@ -848,6 +848,25 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
 
   const printedAt = formatRefundPrintDateTime(new Date().toISOString());
 
+  // Payouts made: one line per till/bank/wallet movement — "part n of m", date, account, amount.
+  const payoutLines = refundPayoutRegisterLines(record);
+  const payoutRowsHtml = payoutLines
+    .map((line, i) => {
+      const when = formatRefundPrintDateTime(line.postedAtISO);
+      const acct = line.accountName ? ` · ${escapeHtml(line.accountName)}` : '';
+      const part = payoutLines.length > 1 ? `Payout part ${i + 1} of ${payoutLines.length}` : 'Payout';
+      return `<div class="tiny">${part}${when ? ` · ${escapeHtml(when)}` : ''}${acct}${line.reference ? ` · ${escapeHtml(line.reference)}` : ''}</div><div class="amt tiny">${escapeHtml(formatNgn(line.amountNgn))}</div>`;
+    })
+    .join('');
+  const remainderClosedNgn = Math.max(0, Math.round(Number(record?.remainderClosedNgn ?? record?.remainder_closed_ngn) || 0));
+  const remainderClosedReason = String(record?.remainderClosedReason ?? record?.remainder_closed_reason ?? 'rounding').trim() || 'rounding';
+  const balanceLeftNgn =
+    record?.settlementSummary?.cashOutstandingNgn != null
+      ? Math.max(0, Math.round(Number(record.settlementSummary.cashOutstandingNgn) || 0))
+      : storyCashDue != null
+        ? storyCashDue
+        : Math.max(0, grossPayable - totalDeduction - paidAmt);
+
   const totalsHtml = `
       <div class="totals">
         ${
@@ -896,6 +915,17 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
             ? `<div>Paid${paidBy ? ` · ${escapeHtml(paidBy)}` : ''}${
                 paidAt ? ` · ${escapeHtml(paidAt)}` : ''
               }</div><div class="amt">${escapeHtml(formatNgn(paidAmt))}</div>`
+            : ''
+        }
+        ${payoutRowsHtml}
+        ${
+          remainderClosedNgn > 0
+            ? `<div>Closed as ${escapeHtml(remainderClosedReason)} (no money out)</div><div class="amt">−${escapeHtml(formatNgn(remainderClosedNgn))}</div>`
+            : ''
+        }
+        ${
+          approvedForPay
+            ? `<div>Balance left to pay</div><div class="amt">${escapeHtml(formatNgn(balanceLeftNgn))}</div>`
             : ''
         }
         <div class="pay-row">Till due now</div><div class="amt pay-row">${escapeHtml(

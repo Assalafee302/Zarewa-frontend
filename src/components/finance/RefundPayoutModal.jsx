@@ -50,6 +50,59 @@ function CopyButton({ text, label = 'Copy' }) {
   );
 }
 
+const remainderClosedOf = (refund) =>
+  Math.max(0, Math.round(Number(refund?.remainderClosedNgn ?? refund?.remainder_closed_ngn) || 0));
+
+/**
+ * One figure the cashier acts on — "Remaining to pay" — with the arithmetic one tap away:
+ * approved − company cut − credit applied − paid so far − closed as rounding = remaining.
+ */
+function RemainingToPay({ refund, story }) {
+  const [open, setOpen] = useState(false);
+  const approved = Math.max(0, Math.round(Number(story?.approvedNgn) || 0));
+  const cut = Math.max(0, Math.round(Number(story?.companyCutNgn) || 0));
+  const credit = Math.max(0, Math.round(Number(story?.appliedNgn) || 0));
+  const paid = Math.max(0, Math.round(Number(story?.treasuryPaidNgn) || 0) + Math.round(Number(story?.walletWithdrawnNgn) || 0));
+  const closed = remainderClosedOf(refund);
+  const remaining = Math.max(0, Math.round(Number(story?.cashOutstandingNgn ?? story?.cashDueNgn) || 0));
+  const held = Math.max(0, Math.round(Number(story?.unclearedHoldNgn) || 0));
+  const wallet = Math.max(0, Math.round(Number(story?.walletOpenNgn) || 0));
+  const ready = story?.tillPayableNgn != null ? Math.max(0, Math.round(Number(story.tillPayableNgn) || 0)) : remaining;
+  return (
+    <div className="mt-2 rounded-lg border border-slate-200 bg-white/80 px-3 py-2" data-testid="remaining-to-pay">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Remaining to pay</span>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="text-ui-xs font-semibold text-slate-500 hover:underline"
+          aria-expanded={open}
+        >
+          {open ? 'Hide' : 'How'}
+        </button>
+      </div>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+        <span className="font-mono text-lg font-black tabular-nums text-slate-900">{formatNgn(remaining)}</span>
+        {ready !== remaining ? (
+          <span className="text-ui-xs font-semibold text-amber-800">{formatNgn(ready)} ready now · {formatNgn(remaining - ready)} {wallet > 0 && held <= 0 ? 'on partner wallet' : 'held until receipts clear'}</span>
+        ) : null}
+      </div>
+      {open ? (
+        <dl className="mt-1 grid grid-cols-[1fr_auto] gap-x-3 gap-y-0.5 text-ui-xs tabular-nums text-slate-600">
+          <dt>Approved</dt>
+          <dd className="text-right font-semibold">{formatNgn(approved)}</dd>
+          {cut > 0 ? (<><dt>− company cut (retained, never paid to the payee)</dt><dd className="text-right font-semibold">{formatNgn(cut)}</dd></>) : null}
+          {credit > 0 ? (<><dt>− already applied as credit{story?.appliedToQuote ? ` to ${story.appliedToQuote}` : ''}</dt><dd className="text-right font-semibold">{formatNgn(credit)}</dd></>) : null}
+          {paid > 0 ? (<><dt>− paid so far from till / bank / wallet</dt><dd className="text-right font-semibold">{formatNgn(paid)}</dd></>) : null}
+          {closed > 0 ? (<><dt>− closed as {String(refund?.remainderClosedReason || 'rounding')}</dt><dd className="text-right font-semibold">{formatNgn(closed)}</dd></>) : null}
+          <dt className="border-t border-slate-200 pt-0.5 font-bold">= remaining to pay</dt>
+          <dd className="border-t border-slate-200 pt-0.5 text-right font-bold">{formatNgn(remaining)}</dd>
+        </dl>
+      ) : null}
+    </div>
+  );
+}
+
 export function RefundPayoutModal({
   isOpen,
   onClose,
@@ -293,6 +346,7 @@ export function RefundPayoutModal({
                     </button>
                   ) : null}
                 </div>
+                <RemainingToPay refund={refund} story={story} />
               </div>
 
               {/* Right: Recipient Card */}
