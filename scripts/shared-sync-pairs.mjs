@@ -118,6 +118,7 @@ export const SHARED_SYNC_PAIRS = [
   ['shared/lib/officeApprovalRouting.js', 'src/shared/lib/officeApprovalRouting.js'],
   ['shared/lib/bankAbbreviation.js', 'src/shared/lib/bankAbbreviation.js'],
   ['shared/lib/controlsPhase3.js', 'src/shared/lib/controlsPhase3.js'],
+  ['shared/lib/attentionRules.js', 'src/shared/lib/attentionRules.js'],
 ];
 
 /** src/lib stubs that re-export the synced canonical file. Do not put logic here. */
