@@ -38,6 +38,7 @@ import {
   PacKindPill as KindPill,
   PacSlaChip as SlaChip,
 } from './PacInboxChrome';
+import { attentionForItem } from '../../lib/attentionFocus';
 
 // Memoized expensive child components to prevent unnecessary re-fetches
 const MemoizedCreditExceptionPanel = memo(CreditExceptionPanel);
@@ -66,6 +67,10 @@ function pacViewFromActiveTab(activeTab) {
  * Priority Action Center — unified approvals queue (attendance moved to My Team).
  */
 export function BranchManagerCommandInbox(props) {
+  // `?legacy=1` keeps the old row text until the owner approves the new sentences.
+  const legacyAttention =
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('legacy') === '1';
+  const rowAttention = useCallback((it) => (legacyAttention ? null : attentionForItem(it)), [legacyAttention]);
   const fromBm = props?.bm && typeof props.bm === 'object' ? props.bm : {};
   const merged = { ...fromBm, ...props };
 
@@ -431,17 +436,17 @@ export function BranchManagerCommandInbox(props) {
         className={`${inboxRowBase} hover:bg-rose-50/40 border-l-4 border-l-rose-500 focus-visible:ring-2 focus-visible:ring-zarewa-teal/40`}
       >
         <KindPill label="governance" tone="urgent" />
-        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
+        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800" title={rowAttention(row)?.sentence || ''}>
           <span className="font-mono font-bold text-zarewa-teal">{row.title || row.id}</span>
           {' · '}
-          {row.subtitle || 'Requires management review'}
+          {rowAttention(row)?.sentence || row.subtitle || 'Requires management review'}
         </span>
         {row.amountNgn != null ? <span className="shrink-0 text-ui-xs font-bold tabular-nums text-rose-700">{asMoney(row.amountNgn)}</span> : null}
         <SlaChip kind="governance" row={row} />
         <ChevronRight size={14} className="shrink-0 text-slate-300" />
       </button>
     ),
-    [asMoney, openGovernanceIntel]
+    [asMoney, openGovernanceIntel, rowAttention]
   );
 
   const renderEditsRow = useCallback(
@@ -502,6 +507,8 @@ export function BranchManagerCommandInbox(props) {
     }
     const kindLabel = managerKindShortLabel(it.kind);
     const tone = managerKindTone(it.kind, { flagged: it.kind === 'flagged' });
+    const attention = rowAttention(it);
+    const more = (attention?.flags?.length || 1) - 1;
     return (
       <button
         key={it.id}
@@ -513,20 +520,22 @@ export function BranchManagerCommandInbox(props) {
         }`}
       >
         <KindPill label={kindLabel} tone={tone} />
-        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
+        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800" title={attention?.sentence || ''}>
           <span className="font-mono font-bold text-zarewa-teal">{it.title}</span>
           {' · '}
-          {it.subtitle}
+          {attention?.sentence || it.subtitle}
         </span>
         {it.amountNgn != null ? (
           <span className="shrink-0 text-ui-xs font-bold tabular-nums text-slate-700">{asMoney(it.amountNgn)}</span>
         ) : null}
         <SlaChip kind={it.kind} row={it} />
-        <span className="hidden lg:inline shrink-0 max-w-[8rem] truncate text-ui-xs text-slate-500">{reasons[0] || ''}</span>
+        <span className="hidden lg:inline shrink-0 max-w-[8rem] truncate text-ui-xs text-slate-500">
+          {attention ? (more > 0 ? `+${more} more` : '') : reasons[0] || ''}
+        </span>
         <ChevronRight size={14} className="shrink-0 text-slate-300" />
       </button>
     );
-  }, [asMoney, asPersonName, openAttentionItem, openEditApprovalIntel]);
+  }, [asMoney, asPersonName, openAttentionItem, openEditApprovalIntel, rowAttention]);
 
   // Simplified main renderer that dispatches to tab-specific renderers
   const renderInboxRow = useCallback(

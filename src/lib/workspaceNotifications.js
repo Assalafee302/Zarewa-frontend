@@ -85,7 +85,7 @@ function pushBranchManagerAlerts(items, { snapshot, roleKey, hasPermission, mana
 
   if (!canMgmt && !canRefund && !canFinanceApprove) return;
 
-  const hasAttentionRows = pushAttentionRowAlerts(items, { managementAttention, snapshot });
+  const hasAttentionRows = pushAttentionRowAlerts(items, { managementAttention, snapshot, roleKey });
 
   const attentionItems = Array.isArray(managementAttention?.items) ? managementAttention.items : [];
   const attentionTotal = Number(managementAttention?.summary?.total) || attentionItems.length;

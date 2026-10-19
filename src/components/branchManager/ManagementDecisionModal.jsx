@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Banknote, History, Scale, ShieldAlert, ShoppingCart, Tag } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { Card, Button } from '../ui';
@@ -21,6 +21,14 @@ import { ZareApprovalHint } from '../ZareApprovalHint';
 import MaterialIncidentDetailModal from '../material/MaterialIncidentDetailModal';
 import { GovernanceDetailPanel } from './GovernanceDetailPanel';
 import { StaffPurchaseCreditManagerPreview } from '../management/StaffPurchaseCreditManagerPreview';
+import { AttentionBanner } from '../attention/AttentionBanner';
+import {
+  attentionForRecord,
+  attentionRecordKeyForIntel,
+  clearAttentionHighlights,
+  highlightAttentionFields,
+  jumpToAttentionAction,
+} from '../../lib/attentionFocus';
 import {
   DecisionModalBody,
   DecisionModalHeader,
@@ -78,8 +86,48 @@ export function ManagementDecisionModal({
   canApproveStaffPurchaseCredit,
   canRejectStaffPurchaseCredit,
   handleStaffPurchaseCreditDecision,
+  attentionItems = [],
+  legacyAttention = false,
 }) {
   const { show: showToast } = useToast();
+  const panelRef = useRef(null);
+  // Every flag on the opened record, worded by the shared rules (same sentence as the inbox row).
+  const attention = useMemo(
+    () =>
+      legacyAttention
+        ? null
+        : attentionForRecord(attentionRecordKeyForIntel(selectedIntel), attentionItems, {
+            limits: ws?.snapshot?.orgGovernanceLimits,
+          }),
+    [legacyAttention, selectedIntel, attentionItems, ws?.snapshot?.orgGovernanceLimits]
+  );
+  const attentionFocusKey = (attention?.flags || []).map((f) => f.focus).join(',');
+  useEffect(() => {
+    if (!selectedIntel || !attentionFocusKey) return undefined;
+    let hits = [];
+    const t = window.setTimeout(() => {
+      hits = highlightAttentionFields(panelRef.current, attentionFocusKey.split(','));
+    }, 150);
+    return () => {
+      window.clearTimeout(t);
+      clearAttentionHighlights(hits);
+    };
+  }, [selectedIntel, attentionFocusKey, auditData, loadingAudit, refundIntelExtras]);
+  const handleAttentionAction = (action) => {
+    if (action.id === 'assign') {
+      navigate?.('/settings/team');
+      return;
+    }
+    if (action.kind === 'decide' && jumpToAttentionAction(panelRef.current, action.id)) return;
+    showToast(`${action.label} is in the decision panel below.`, { variant: 'info' });
+  };
+  const attentionBanner = attention ? (
+    <AttentionBanner
+      attention={attention}
+      hideActions={['open', 'ask_cashier', 'pay', 'fix']}
+      onAction={handleAttentionAction}
+    />
+  ) : null;
   const [materialDecisionRemark, setMaterialDecisionRemark] = useState('');
   const [materialDecisionBusy, setMaterialDecisionBusy] = useState(false);
   const modalBusy = Boolean(decisionBusy || materialDecisionBusy);
@@ -196,6 +244,7 @@ export function ManagementDecisionModal({
         onApprove={handleMaterialApprove}
         onReject={handleMaterialReject}
         externalBusy={materialDecisionBusy}
+        banner={attention ? <AttentionBanner attention={attention} hideActions={['open', 'ask_cashier', 'pay', 'fix', 'approve', 'reject']} /> : null}
       />
     );
   }
@@ -300,6 +349,7 @@ export function ManagementDecisionModal({
   return (
     <ModalFrame isOpen={Boolean(selectedIntel)} onClose={closeIntelModal} closeDisabled={modalBusy} showCloseButton={false}>
       <div
+        ref={panelRef}
         className={`z-modal-panel w-full overflow-hidden p-0 ${modalPanelWidth}`}
       >
         <Card className="flex max-h-[min(92vh,960px)] flex-col overflow-hidden border-slate-200 bg-white shadow-xl">
@@ -311,6 +361,7 @@ export function ManagementDecisionModal({
           />
 
           <DecisionModalBody>
+            {attentionBanner}
             {selectedIntel?.kind === 'governance' ? (
               <GovernanceDetailPanel
                 item={selectedIntel.item || selectedIntel}

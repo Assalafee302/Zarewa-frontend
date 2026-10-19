@@ -531,6 +531,8 @@ const ManagerDashboard = () => {
         <Suspense fallback={null}>
           <ManagementDecisionModal
             selectedIntel={bm.selectedIntel}
+            attentionItems={bm.attentionItems}
+            legacyAttention={searchParams.get('legacy') === '1'}
             closeIntelModal={() => {
               if (bm.remarkDialog?.open || bm.confirmDialog?.open) return;
               bm.closeIntelModal();
