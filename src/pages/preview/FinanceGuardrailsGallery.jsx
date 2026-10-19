@@ -194,14 +194,14 @@ export default function FinanceGuardrailsGallery() {
             <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-950">
               {customerOwedCreditLine(owed)}
             </p>
+            <button type="button" className="z-btn-primary w-full justify-center py-3">
+              Confirm payment &amp; clear for delivery
+            </button>
             <button type="button" className="w-full rounded-xl border border-sky-200 bg-white py-2.5 text-ui-xs font-bold uppercase tracking-wide text-sky-900">
               Use refund credit instead
             </button>
             <button type="button" className="w-full rounded-xl border border-rose-200 bg-rose-50 py-2.5 text-ui-xs font-bold uppercase tracking-wide text-rose-900">
               Reverse mistaken receipt
-            </button>
-            <button type="button" className="z-btn-primary w-full justify-center py-3">
-              Confirm payment &amp; clear for delivery
             </button>
           </div>
         </Section>

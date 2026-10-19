@@ -6183,6 +6183,23 @@ const Account = () => {
                   separately.
                 </span>
               </label>
+              {/* A6 (owner 19 Oct): Confirm is the first button on the card; credit and reverse follow. */}
+              <button
+                type="submit"
+                disabled={receiptFinanceBusy || receiptUnconfirmBusy || !ws?.canMutate}
+                className="z-btn-primary w-full justify-center py-3 disabled:opacity-50"
+              >
+                {receiptFinanceBusy
+                  ? 'Saving…'
+                  : receiptFinanceRow?.financeReconciliationSavedAtISO
+                    ? 'Save revision'
+                    : receiptHoldDelivery
+                      ? 'Confirm payment (hold delivery)'
+                      : cashierRefundCreditPanelVisible ||
+                          hangingRefundsForCustomer(customerRefunds, receiptFinanceRow.customerID).length > 0
+                        ? 'Confirm payment & clear for delivery'
+                        : `Quick confirm (${formatNgn(cashierReceiptCashNgn)})`}
+              </button>
               {!receiptFinanceRow?.financeReconciliationSavedAtISO &&
               receiptOwedCredit.totalNgn > 0 &&
               (ws?.hasPermission?.('finance.pay') || ws?.hasPermission?.('finance.post')) ? (
@@ -6220,22 +6237,6 @@ const Account = () => {
                   {receiptUnconfirmBusy ? 'Unconfirming…' : 'Unconfirm payment'}
                 </button>
               ) : null}
-              <button
-                type="submit"
-                disabled={receiptFinanceBusy || receiptUnconfirmBusy || !ws?.canMutate}
-                className="z-btn-primary w-full justify-center py-3 disabled:opacity-50"
-              >
-                {receiptFinanceBusy
-                  ? 'Saving…'
-                  : receiptFinanceRow?.financeReconciliationSavedAtISO
-                    ? 'Save revision'
-                    : receiptHoldDelivery
-                      ? 'Confirm payment (hold delivery)'
-                      : cashierRefundCreditPanelVisible ||
-                          hangingRefundsForCustomer(customerRefunds, receiptFinanceRow.customerID).length > 0
-                        ? 'Confirm payment & clear for delivery'
-                        : `Quick confirm (${formatNgn(cashierReceiptCashNgn)})`}
-              </button>
             </form>
           ) : null}
         </div>
