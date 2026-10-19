@@ -20,6 +20,9 @@ const AppDesk = lazyWithRetry(() => import('./AppDesk.jsx'), { id: 'AppDesk' });
 const CoilUxGallery = import.meta.env.DEV
   ? lazyWithRetry(() => import('./pages/preview/CoilUxGallery.jsx'), { id: 'CoilUxGallery' })
   : null;
+const RefundGallery = import.meta.env.DEV
+  ? lazyWithRetry(() => import('./pages/preview/RefundGallery.jsx'), { id: 'RefundGallery' })
+  : null;
 
 /** Typical shell wait after sign-in; bar eases toward this, not the hard abort. */
 function bootExpectedMs() {
@@ -225,6 +228,16 @@ function App() {
                     element={
                       <Suspense fallback={<BootScreen light title="Opening preview…" />}>
                         <CoilUxGallery />
+                      </Suspense>
+                    }
+                  />
+                ) : null}
+                {RefundGallery ? (
+                  <Route
+                    path="/preview/refunds"
+                    element={
+                      <Suspense fallback={<BootScreen light title="Opening preview…" />}>
+                        <RefundGallery />
                       </Suspense>
                     }
                   />
