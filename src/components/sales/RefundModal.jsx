@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { ModalFrame, ModalScrollShell, ModalScrollHeader, ModalScrollBody, ModalScrollFooter } from '../layout';
 import { RefundPayoutRecipientPicker } from './RefundPayoutRecipientPicker';
+import { RefundableBalance } from '../refund/RefundableBalance.jsx';
 import { RefundPayoutBankForm } from './RefundPayoutBankForm';
 import { RefundApplyToQuotationPanel } from '../finance/RefundApplyToQuotationPanel.jsx';
 import { RefundFundBalanceStrip } from '../finance/RefundFundBalanceStrip.jsx';
@@ -2946,6 +2947,11 @@ const RefundModal = ({
             : Math.round(Number(preview.quotationCashInNgn) || 0),
         paidRefundsOnQuotationNgn: Math.round(Number(preview.paidRefundsOnQuotationNgn) || 0),
         priorRefundsOnQuotationNgn: Math.round(Number(preview.priorRefundsOnQuotationNgn) || 0),
+        // cash received − refunds on file − credit moved to other quotations (server sentence included)
+        refundableBreakdown:
+          preview.refundableBreakdown && typeof preview.refundableBreakdown === 'object'
+            ? preview.refundableBreakdown
+            : null,
       });
       setCategorySuggestedMaxNgn(
         preview.categorySuggestedMaxNgn && typeof preview.categorySuggestedMaxNgn === 'object'
@@ -4320,6 +4326,11 @@ const RefundModal = ({
     );
     const netToPayout = sumRefundStaffNetPayoutNgn(enriched);
     const remaining = remainingRefundSplitNgn(splitRows, refundTotal);
+    // Live preview while typing: who gets what. Quote-customer rows carry no cut; every other payee is a staff share.
+    const customerNet = enriched
+      .filter((row) => isQuoteCustomerSplitRow(row, form.customerID) && !row.forceClaimingStaffCut)
+      .reduce((sum, row) => sum + roundMoneyLocal(row.netPayoutNgn), 0);
+    const staffNet = Math.max(0, netToPayout - customerNet);
     return {
       refundTotal,
       allocatedGross,
@@ -4327,6 +4338,8 @@ const RefundModal = ({
       companyCut,
       unclearedHold,
       netToPayout,
+      customerNet,
+      staffNet,
       hasSplits: splitRows.length > 0,
       incompleteRows: splitRows.some((r) => roundMoneyLocal(r.amountNgn) > 0 && !refundSplitRowHasPayee(r)),
       balanced: Math.abs(remaining) <= AMOUNT_LINE_TOL,
@@ -4841,9 +4854,19 @@ const RefundModal = ({
                   <p className={`font-mono text-lg sm:text-xl font-black tabular-nums ${exceedsRefundableHeadroom ? 'text-rose-700' : 'text-slate-900'}`}>
                     ₦{roundMoneyLocal(form.amountNgn || lineSum).toLocaleString('en-NG')}
                   </p>
-                  {previewRemainingNgn != null ? (
+                  {mode === 'create' && (moneyContext?.refundableBreakdown || effectiveRefundCapNgn != null) ? (
+                    <RefundableBalance
+                      compact
+                      breakdown={moneyContext?.refundableBreakdown}
+                      cashInNgn={moneyContext?.quotationCashInNgn}
+                      refundsNgn={Math.max(0, (moneyContext?.quotationCashInNgn || 0) - (effectiveRefundCapNgn || 0) - (moneyContext?.creditAppliedOutNgn || 0))}
+                      creditOutNgn={moneyContext?.creditAppliedOutNgn}
+                      suggestedNgn={previewRemainingNgn}
+                      requestedNgn={roundMoneyLocal(form.amountNgn || lineSum)}
+                    />
+                  ) : previewRemainingNgn != null ? (
                     <p className="text-ui-xs text-amber-700 font-semibold tabular-nums">
-                      Remaining: ₦{previewRemainingNgn.toLocaleString('en-NG')}
+                      System suggests: ₦{previewRemainingNgn.toLocaleString('en-NG')}
                     </p>
                   ) : null}
                 </div>
@@ -5789,10 +5812,23 @@ const RefundModal = ({
                           ) : null}
                         </div>
                       ) : null}
+                      {mode === 'create' && (moneyContext?.refundableBreakdown || effectiveRefundCapNgn != null) ? (
+                        <div className="pt-2 border-t border-slate-700/80">
+                          <RefundableBalance
+                            tone="dark"
+                            breakdown={moneyContext?.refundableBreakdown}
+                            cashInNgn={moneyContext?.quotationCashInNgn}
+                            refundsNgn={Math.max(0, (moneyContext?.quotationCashInNgn || 0) - (effectiveRefundCapNgn || 0) - (moneyContext?.creditAppliedOutNgn || 0))}
+                            creditOutNgn={moneyContext?.creditAppliedOutNgn}
+                            suggestedNgn={previewRemainingNgn}
+                            requestedNgn={roundMoneyLocal(form.amountNgn || lineSum)}
+                          />
+                        </div>
+                      ) : null}
                       {previewRemainingNgn != null && mode === 'create' ? (
                         <div className="pt-2 border-t border-slate-700/80">
                           <p className="text-ui-xs font-bold text-slate-500 uppercase mb-0.5">
-                            {showLeftoverOverpayStrip ? 'Can still pay out' : 'Remaining refundable'}
+                            {showLeftoverOverpayStrip ? 'Can still pay out' : 'System suggests'}
                           </p>
                           <p className="text-sm font-black text-amber-200 tabular-nums">
                             ₦{previewRemainingNgn.toLocaleString('en-NG')}
@@ -7165,10 +7201,31 @@ const RefundModal = ({
         <div className="px-6 py-4 border-t border-slate-200/60 bg-white rounded-b-2xl flex flex-col sm:flex-row justify-between items-center gap-3 shrink-0">
           <div className="flex items-center gap-2 w-full sm:w-auto">
             {form.quotationRef ? (
-              <div className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-1.5 text-xs text-slate-600 border border-slate-200/80">
+              <div className="inline-flex flex-wrap items-center gap-2 rounded-xl bg-slate-100 px-3 py-1.5 text-xs text-slate-600 border border-slate-200/80" data-testid="refund-live-preview">
                 <span>Refund: <strong className="text-slate-900">₦{roundMoneyLocal(form.amountNgn || lineSum).toLocaleString('en-NG')}</strong></span>
+                {payoutAllocationTotals.hasSplits ? (
+                  <>
+                    <span className="text-slate-300">|</span>
+                    <span>Customer: <strong className="text-slate-900">₦{payoutAllocationTotals.customerNet.toLocaleString('en-NG')}</strong></span>
+                    <span>Staff: <strong className="text-slate-900">₦{payoutAllocationTotals.staffNet.toLocaleString('en-NG')}</strong></span>
+                    {payoutAllocationTotals.companyCut > 0 ? (
+                      <span>Cut: <strong className="text-rose-700">−₦{payoutAllocationTotals.companyCut.toLocaleString('en-NG')}</strong></span>
+                    ) : null}
+                  </>
+                ) : null}
                 <span className="text-slate-300">|</span>
-                <span>Payout: <strong className="text-slate-900">₦{payoutAllocationTotals.netToPayout.toLocaleString('en-NG')}</strong></span>
+                <span>Net to pay: <strong className="text-slate-900">₦{payoutAllocationTotals.netToPayout.toLocaleString('en-NG')}</strong></span>
+                {mode === 'create' && effectiveRefundCapNgn != null ? (
+                  <>
+                    <span className="text-slate-300">|</span>
+                    <span>
+                      Refundable left:{' '}
+                      <strong className={effectiveRefundCapNgn - roundMoneyLocal(form.amountNgn || lineSum) < 0 ? 'text-rose-700' : 'text-slate-900'}>
+                        ₦{(effectiveRefundCapNgn - roundMoneyLocal(form.amountNgn || lineSum)).toLocaleString('en-NG')}
+                      </strong>
+                    </span>
+                  </>
+                ) : null}
                 {payoutAllocationTotals.balanced ? (
                   <span className="rounded-md bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 text-[10px]">Balanced</span>
                 ) : (
