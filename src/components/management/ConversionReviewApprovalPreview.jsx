@@ -68,6 +68,7 @@ export function ConversionReviewApprovalPreview({
           </div>
           <div className="shrink-0 text-right">
             <span
+              data-attention-field="conversion"
               className={`inline-flex rounded-md border px-2 py-1 text-ui-xs font-black uppercase ${conversionAlertChipClass(copy.tone)}`}
             >
               {copy.headline}

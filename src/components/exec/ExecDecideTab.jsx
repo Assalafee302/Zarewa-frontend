@@ -11,6 +11,7 @@ export function ExecDecideTab({
   mdOnlyCount,
   sharedCount,
   onReview,
+  legacy = false,
 }) {
   const [search, setSearch] = useState('');
 
@@ -25,6 +26,7 @@ export function ExecDecideTab({
         row.status,
         row.requestedBy,
         row.approvalTierLabel,
+        row.attention?.sentence,
       ]
         .filter(Boolean)
         .join(' ')
@@ -53,6 +55,7 @@ export function ExecDecideTab({
         search={search}
         onSearchChange={setSearch}
         formatNgn={formatNgn}
+        legacy={legacy}
       />
     </div>
   );

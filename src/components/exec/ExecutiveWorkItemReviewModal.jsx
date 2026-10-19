@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeftRight, Banknote, History, Package, Scale, Tag, Wallet, X } from 'lucide-react';
 import { ModalFrame } from '../layout/ModalFrame';
 import { formatNgn } from '../../Data/mockData';
@@ -39,6 +39,15 @@ import { decideStaffPurchaseCredit } from '../../lib/hrStaffPurchaseCredit';
 import { canApproveStaffPurchaseCredit, canRejectStaffPurchaseCredit, canMdApprovePayroll } from '../../lib/hrAccess';
 import { mdApprovePayrollRun } from '../../lib/hrExtended';
 import { formatPersonName } from '../../lib/formatPersonName';
+import { AttentionBanner } from '../attention/AttentionBanner';
+import {
+  attentionForItem,
+  attentionForRecord,
+  attentionRecordKey,
+  clearAttentionHighlights,
+  highlightAttentionFields,
+  jumpToAttentionAction,
+} from '../../lib/attentionFocus';
 import {
   DecisionActionBar,
   DecisionBand,
@@ -58,8 +67,17 @@ import {
  *   readOnly?: boolean;
  * }} props
  */
-export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onCompleted, readOnly = false }) {
+export function ExecutiveWorkItemReviewModal({
+  item,
+  isOpen,
+  onClose,
+  onCompleted,
+  readOnly = false,
+  legacy = false,
+  relatedItems = [],
+}) {
   const ws = useWorkspace();
+  const panelRef = useRef(null);
   const { show: showToast } = useToast();
   const [busy, setBusy] = useState(false);
   const [auditData, setAuditData] = useState(null);
@@ -85,6 +103,15 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
   const [paymentDetail, setPaymentDetail] = useState(null);
 
   const review = useMemo(() => resolveExecReviewView(item), [item]);
+  // Every flag on this record (e.g. a refund that is both pending and approver = payer), not just the row tapped.
+  const attention = useMemo(() => {
+    if (legacy || !item) return null;
+    const ctx = { limits: ws?.snapshot?.orgGovernanceLimits };
+    return (
+      attentionForRecord(attentionRecordKey(item), [item, ...(relatedItems || [])], ctx) ||
+      attentionForItem(item, ctx)
+    );
+  }, [item, legacy, relatedItems, ws?.snapshot?.orgGovernanceLimits]);
   const ctx = useMemo(() => execWorkItemReviewContext(item), [item]);
   const settlementId = useMemo(() => resolveExecSettlementId(item), [item]);
   const canApproveSettlements =
@@ -596,6 +623,37 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
     await finish();
   };
 
+  // Highlight the offending field(s) once the record's panels have rendered (they load in steps).
+  const attentionFocusKey = (attention?.flags || []).map((f) => f.focus).join(',');
+  useEffect(() => {
+    if (!isOpen || !attentionFocusKey) return undefined;
+    let hits = [];
+    const t = window.setTimeout(() => {
+      hits = highlightAttentionFields(panelRef.current, attentionFocusKey.split(','));
+    }, 150);
+    return () => {
+      window.clearTimeout(t);
+      clearAttentionHighlights(hits);
+    };
+  }, [isOpen, attentionFocusKey, loadingAudit, loadingSettlement, paymentDetail, quotationRow, auditData]);
+
+  const handleAttentionAction = (action) => {
+    if (action.id === 'assign') {
+      window.location.assign('/settings/team');
+      return;
+    }
+    if (action.kind === 'decide' && jumpToAttentionAction(panelRef.current, action.id)) return;
+    showToast(
+      readOnly || item?.canAct === false
+        ? 'You can view this record but not decide on it.'
+        : `${action.label} is in the decision panel below.`,
+      { variant: 'info' }
+    );
+  };
+
+  /** Banner actions that make no sense inside this window (the record is already open here). */
+  const bannerHiddenActions = review.view === 'fallback' ? ['ask_cashier', 'pay', 'fix'] : ['open', 'ask_cashier', 'pay', 'fix'];
+
   if (!item) return null;
 
   if (review.view === 'material') {
@@ -610,6 +668,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
         onApprove={handleMaterialApprove}
         onReject={handleMaterialReject}
         externalBusy={busy}
+        banner={attention ? <AttentionBanner attention={attention} readOnly={readOnly} hideActions={['open', 'ask_cashier', 'pay', 'fix', 'approve', 'reject']} /> : null}
       />
     );
   }
@@ -626,6 +685,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
           if (typeof onCompleted === 'function') await onCompleted();
         }}
         canApprove={!readOnly && item.canAct !== false}
+        banner={attention ? <AttentionBanner attention={attention} readOnly={readOnly} hideActions={['open', 'ask_cashier', 'pay', 'fix', 'approve', 'reject']} /> : null}
       />
     );
   }
@@ -651,6 +711,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
   return (
     <ModalFrame isOpen={isOpen} onClose={onClose} surface="plain" title={`Executive review — ${kindLabel}`} edgeToEdgeMobile showCloseButton={false}>
       <div
+        ref={panelRef}
         className={`z-modal-panel flex max-h-[min(92vh,880px)] w-full flex-col overflow-hidden rounded-none sm:rounded-2xl border-0 sm:border border-slate-200 bg-white shadow-xl max-sm:h-[100dvh] max-sm:max-h-[100dvh] ${
           isOfficeMemo
             ? 'max-w-[min(100%,960px)]'
@@ -688,7 +749,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                 .filter(Boolean)
                 .join(' · ') || '—'}
             </p>
-            {reasons.length > 0 ? (
+            {legacy && reasons.length > 0 ? (
               <ul className="mt-1.5 space-y-0.5 text-ui-xs text-amber-900/90 list-disc pl-4">
                 {reasons.map((r, i) => (
                   <li key={i}>{r}</li>
@@ -715,6 +776,14 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
         </div>
         ) : (
         <DecisionModalBody>
+          {attention ? (
+            <AttentionBanner
+              attention={attention}
+              readOnly={readOnly || item.canAct === false}
+              hideActions={bannerHiddenActions}
+              onAction={handleAttentionAction}
+            />
+          ) : null}
           {review.view === 'price_exception' && review.quotationId ? (
             <QuotationPriceExceptionPanel
               layout="desk"

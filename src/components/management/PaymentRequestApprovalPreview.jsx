@@ -41,8 +41,10 @@ export function PaymentRequestApprovalPreview({
         subtitle={r.description || r.expense_id || null}
         aside={
           <>
-            <p className="text-ui-xs font-bold uppercase text-slate-400">Amount</p>
-            <p className="text-xl font-black tabular-nums text-slate-900">{amount}</p>
+            <div data-attention-field="amount">
+              <p className="text-ui-xs font-bold uppercase text-slate-400">Amount</p>
+              <p className="text-xl font-black tabular-nums text-slate-900">{amount}</p>
+            </div>
             {r.request_date ? (
               <p className="mt-0.5 text-ui-xs uppercase tracking-wide text-slate-500">{r.request_date}</p>
             ) : null}
