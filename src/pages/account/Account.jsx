@@ -1228,6 +1228,11 @@ const Account = () => {
             paymentLines: tillLines,
             releasePartnerWallet: releaseWallet,
             treasuryAccountId: releaseWallet ? treasuryAccountId : undefined,
+            // The treasury line is booked against the person being paid (staff share or nominee), not the quote customer.
+            payeeName: refundPaySelectedPayee?.recipientLabel || refundPaySelectedPayee?.payeeName || undefined,
+            payeeBankName: refundPaySelectedPayee?.payeeBankName || undefined,
+            payeeAccountNo: refundPaySelectedPayee?.payeeAccountNo || undefined,
+            payeeKind: refundPaySelectedPayee?.recipientKind || undefined,
           }),
         });
         if (!ok || !data?.ok) {
