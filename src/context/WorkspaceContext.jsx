@@ -1878,3 +1878,8 @@ export function WorkspaceProvider({ children }) {
 export function useWorkspace() {
   return useContext(WorkspaceContext);
 }
+
+/** Dev preview only (src/pages/preview): render workspace consumers with a fixture value. */
+export function WorkspacePreviewProvider({ value, children }) {
+  return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
+}

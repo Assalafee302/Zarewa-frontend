@@ -17,6 +17,7 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useCustomers } from '../../context/CustomersContext';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { receiptDuplicate24hPrompt, userIsBranchManagerOrOmClient } from '../../lib/financeManagerOverride.js';
 import {
   amountDueOnQuotation,
   loadLedgerEntries,
@@ -1118,6 +1119,20 @@ const ReceiptModal = ({
           }
           workingBody = { ...workingBody, confirmSettledQuoteOverpay: true, fullAmountAsReceipt: true };
           ({ ok, data, status } = await postReceipt(workingBody, newLedgerIdempotencyKey('rc-settled')));
+        }
+        if (!ok && data?.code === 'RECEIPT_DUPLICATE_24H') {
+          // A2: same customer + amount + quotation / cutting list within 24 h — BM/OM only, with a reason.
+          if (!userIsBranchManagerOrOmClient(roleKey)) {
+            showToast(`${data.error} Ask a Branch Manager or Operations Manager to post it.`, { variant: 'error' });
+            return;
+          }
+          const reason = window.prompt(receiptDuplicate24hPrompt(data));
+          if (!reason || reason.trim().length < 10) {
+            showToast('Posting cancelled — a second receipt within 24 hours needs a manager reason.', { variant: 'info' });
+            return;
+          }
+          workingBody = { ...workingBody, duplicate24hOverrideReason: reason.trim() };
+          ({ ok, data, status } = await postReceipt(workingBody, newLedgerIdempotencyKey('rc-dup24')));
         }
         if (!ok && data?.code === 'POSSIBLE_DUPLICATE_RECEIPT') {
           const lines = (data?.duplicateSignals || [])
