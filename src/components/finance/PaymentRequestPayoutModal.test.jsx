@@ -52,6 +52,8 @@ describe('PaymentRequestPayoutModal', () => {
         requestPayNote=""
         onRequestPayNoteChange={vi.fn()}
         onConfirmPay={vi.fn()}
+        cashOffice={{ recipientName: '', voucherReference: '' }}
+        onCashOfficeChange={vi.fn()}
       />
     );
 
