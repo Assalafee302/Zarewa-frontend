@@ -18,6 +18,7 @@ import { Button } from '../ui';
 import { CreditExceptionPanel } from '../finance/CreditExceptionPanel';
 import { ExpenseCategoryLaneBadge } from '../office/ExpenseCategoryLaneBadge.jsx';
 import { FinanceSequencePanel } from '../layout';
+import { AttentionFromDateNote } from '../attention/AttentionFromDateNote';
 import { formatStockRegisterMonth } from '../../lib/stockRegisterPeriod';
 import {
   managerKindShortLabel,
@@ -103,6 +104,9 @@ export function BranchManagerCommandInbox(props) {
     canApprovePaymentRequests = true,
     ws,
     stockRegisterInbox = [],
+    stockHiddenOlder = [],
+    attentionFromDate = '',
+    hiddenOlderCount = 0,
     setStockRegisterMgrOpen,
     showDeliveryCreditTab = true,
     maintenanceIssueCount = 0,
@@ -925,6 +929,12 @@ export function BranchManagerCommandInbox(props) {
           </div>
         )}
       </div>
+      <AttentionFromDateNote
+        fromDate={attentionFromDate}
+        hiddenCount={hiddenOlderCount}
+        extraItems={stockHiddenOlder}
+        formatNgn={asMoney}
+      />
     </FinanceSequencePanel>
   );
 }

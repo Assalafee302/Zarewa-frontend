@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { summarizeAttention } from '../../shared/lib/attentionRules.js';
+import { AttentionFromDateNote } from '../attention/AttentionFromDateNote.jsx';
 
 const DOT = {
   critical: 'bg-rose-600',
@@ -80,6 +81,8 @@ export function ExecAttentionList({
   limits,
   title = 'Needs your attention',
   emptyText = 'Nothing is waiting for you.',
+  attentionFromDate = '',
+  hiddenOlderCount = 0,
 }) {
   const [order, setOrder] = useState('newest');
   const summary = useMemo(() => summarizeAttention(items, { order, limits }), [items, order, limits]);
@@ -121,6 +124,7 @@ export function ExecAttentionList({
           </ul>
         </section>
       ))}
+      <AttentionFromDateNote fromDate={attentionFromDate} hiddenCount={hiddenOlderCount} formatNgn={formatNgn} />
     </section>
   );
 }

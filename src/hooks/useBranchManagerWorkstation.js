@@ -135,6 +135,9 @@ export function useBranchManagerWorkstation() {
   const [loadError, setLoadError] = useState(null);
   const [stockRegisterMgrOpen, setStockRegisterMgrOpen] = useState(false);
   const [stockRegisterInbox, setStockRegisterInbox] = useState([]);
+  const [stockHiddenOlder, setStockHiddenOlder] = useState([]);
+  const [attentionFromDate, setAttentionFromDate] = useState('');
+  const [hiddenOlderCount, setHiddenOlderCount] = useState(0);
   const [items, setItems] = useState({
     pendingClearance: [],
     flagged: [],
@@ -660,9 +663,13 @@ export function useBranchManagerWorkstation() {
         if (attentionRes.ok && attentionRes.data?.ok !== false) {
           setAttentionItems(Array.isArray(attentionRes.data.items) ? attentionRes.data.items : []);
           setAttentionSummary(attentionRes.data.summary || null);
+          setAttentionFromDate(String(attentionRes.data.attentionFromDate || ''));
+          setHiddenOlderCount(Number(attentionRes.data.hiddenOlderCount) || 0);
         } else {
           setAttentionItems([]);
           setAttentionSummary(null);
+          setAttentionFromDate('');
+          setHiddenOlderCount(0);
         }
 
         const itemsOk =
@@ -724,13 +731,17 @@ export function useBranchManagerWorkstation() {
   useEffect(() => {
     if (!mgrBranchId) {
       setStockRegisterInbox([]);
+      setStockHiddenOlder([]);
       return;
     }
     let cancelled = false;
     void (async () => {
       const { ok, data } = await apiFetch('/api/stock-register/inbox?queue=manager');
       if (cancelled) return;
-      if (ok && data?.ok) setStockRegisterInbox(data.items || []);
+      if (ok && data?.ok) {
+        setStockRegisterInbox(data.items || []);
+        setStockHiddenOlder(Array.isArray(data.hiddenOlderItems) ? data.hiddenOlderItems : []);
+      }
     })();
     return () => {
       cancelled = true;
@@ -2295,6 +2306,9 @@ export function useBranchManagerWorkstation() {
     setStockRegisterMgrOpen,
     stockRegisterInbox,
     setStockRegisterInbox,
+    stockHiddenOlder,
+    attentionFromDate,
+    hiddenOlderCount,
     items,
     setItems,
     selectedIntel,
