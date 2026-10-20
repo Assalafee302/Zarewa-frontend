@@ -18,6 +18,7 @@ import {
 import { ModalFrame, ModalScrollShell, ModalScrollHeader, ModalScrollBody, ModalScrollFooter } from '../layout';
 import { formatNgn } from '../../Data/mockData';
 import { ExpenseCategoryPayoutReadinessPanel } from '../office/ExpenseCategoryPayoutReadinessPanel.jsx';
+import { CashOfficePayoutFields } from './CashOfficePayoutFields.jsx';
 import {
   maintenanceCostKindLabel,
   looksLikeMaintenanceWorkOrderRef,
