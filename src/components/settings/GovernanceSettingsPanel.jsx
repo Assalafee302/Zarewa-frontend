@@ -27,6 +27,9 @@ export default function GovernanceSettingsPanel() {
   const [branchAuditBusy, setBranchAuditBusy] = useState(false);
   const [cuttingDraftPct, setCuttingDraftPct] = useState({});
   const [cuttingSaveBusy, setCuttingSaveBusy] = useState('');
+  const [attentionFromRows, setAttentionFromRows] = useState([]);
+  const [attentionFromDraft, setAttentionFromDraft] = useState({});
+  const [attentionFromBusy, setAttentionFromBusy] = useState('');
   const [govLimitsForm, setGovLimitsForm] = useState({
     expenseExecutiveThresholdNgn: 200_000,
     refundExecutiveThresholdNgn: 1_000_000,
@@ -127,6 +130,46 @@ export default function GovernanceSettingsPanel() {
     if (!showBranchAudit) return;
     void loadBranchAudit();
   }, [showBranchAudit, loadBranchAudit]);
+
+  useEffect(() => {
+    if (!showCuttingThresholdControl) return;
+    let cancelled = false;
+    (async () => {
+      const { ok, data } = await apiFetch('/api/org/attention-from-date');
+      if (cancelled || !ok || !data?.ok) return;
+      const rows = Array.isArray(data.branches) ? data.branches : [];
+      setAttentionFromRows(rows);
+      const draft = {};
+      for (const row of rows) draft[row.branchId] = row.attentionFromDate || '2026-08-01';
+      setAttentionFromDraft(draft);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showCuttingThresholdControl]);
+
+  const saveAttentionFromDate = async (branchId) => {
+    const bid = String(branchId || '').trim();
+    const date = String(attentionFromDraft[bid] || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      showToast('Enter a start date as YYYY-MM-DD.', { variant: 'error' });
+      return;
+    }
+    setAttentionFromBusy(bid);
+    try {
+      const { ok, data } = await apiFetch(`/api/branches/${encodeURIComponent(bid)}/attention-from-date`, {
+        method: 'PATCH',
+        body: JSON.stringify({ attentionFromDate: date }),
+      });
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not save the attention start date.', { variant: 'error' });
+        return;
+      }
+      showToast('Attention list start date saved for this branch.');
+    } finally {
+      setAttentionFromBusy('');
+    }
+  };
 
   useEffect(() => {
     if (!showGovernanceLimitsControl) return;
@@ -516,6 +559,57 @@ export default function GovernanceSettingsPanel() {
           <p className="mt-2 text-xs text-slate-500">
             Newline-delimited JSON for archiving, SIEM ingest, or offline review. Respects your current session.
           </p>
+        </section>
+      ) : null}
+
+      {showCuttingThresholdControl ? (
+        <section className="rounded-md border border-slate-200/90 bg-white p-6 shadow-sm">
+          <h3 className="z-section-title flex items-center gap-2">
+            <Factory size={14} /> Attention list — start date
+          </h3>
+          <p className="mt-2 text-xs text-slate-500">
+            ATTENTION_FROM_DATE. Orders, cash, floor, control, edits and stock review dated before this
+            stay off the list, the counts and the bell. Default is 1 Aug 2026. Older items can still be
+            opened read-only from the line under the list. Nothing is deleted.
+          </p>
+          <div className="mt-4 space-y-3">
+            {attentionFromRows.length === 0 ? (
+              <p className="text-sm text-slate-500">No branches in workspace.</p>
+            ) : (
+              attentionFromRows.map((b) => (
+                <div
+                  key={b.branchId}
+                  className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 sm:flex-row sm:items-end sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-zarewa-teal">{b.name || b.branchId}</p>
+                    <p className="font-mono text-ui-xs text-slate-500">{b.branchId}</p>
+                  </div>
+                  <div className="flex flex-wrap items-end gap-2">
+                    <div>
+                      <label className="z-field-label">Show items from</label>
+                      <input
+                        type="date"
+                        value={attentionFromDraft[b.branchId] ?? '2026-08-01'}
+                        onChange={(e) =>
+                          setAttentionFromDraft((prev) => ({ ...prev, [b.branchId]: e.target.value }))
+                        }
+                        className="z-input w-40"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      disabled={attentionFromBusy === b.branchId}
+                      onClick={() => void saveAttentionFromDate(b.branchId)}
+                      className="z-btn-primary justify-center text-xs"
+                    >
+                      {attentionFromBusy === b.branchId ? 'Saving…' : 'Save'}
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </section>
       ) : null}
 

@@ -55,6 +55,8 @@ export function ExecTodayTab({
           onOpen={onReview}
           formatNgn={formatNgn}
           limits={limits}
+          attentionFromDate={data?.workTray?.summary?.attentionFromDate || ''}
+          hiddenOlderCount={data?.workTray?.summary?.hiddenOlderCount || 0}
         />
       )}
       {legacy && (data?.workTray?.summary?.total ?? 0) > 7 ? (
