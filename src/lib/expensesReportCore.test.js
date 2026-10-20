@@ -1,7 +1,7 @@
 // @vitest-environment node
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { buildExpensesReport, BOOK_FIXED_ASSET, BOOK_REFUNDS, BOOK_STAFF_LOANS } from './expensesReportCore.js';
+import { buildExpensesReport, BOOK_FIXED_ASSET, BOOK_LOAN_REPAYMENTS, BOOK_REFUNDS, BOOK_STAFF_LOANS } from './expensesReportCore.js';
 import { expensesReportExcelSheets, expensesReportPrintPayload } from './expensesReportPrint.js';
 
 const kd = JSON.parse(
@@ -156,6 +156,13 @@ describe('expense reclassification rules (synthetic)', () => {
   it('treats a staff payee with "loan" / "advance" as a staff loan', () => {
     const r = run([line('E1', 'Office expenses', 'salary advance', 5000, 'Musa Staff')]);
     expect(r.rows[0]).toMatchObject({ reclassRule: 'R2', bookCategory: BOOK_STAFF_LOANS });
+  });
+
+  it('a BOI loan repayment is money out, not an expense: own book group, left out of the book expense total', () => {
+    const r = run([line('E1', 'Loan repayment — BOI', 'BOI loan repayment', 3_386_836), line('E2', 'Bank charges', 'Bank charges — Taj', 104)]);
+    expect(r.rows.find((x) => x.expenseID === 'E1')).toMatchObject({ bookCategory: BOOK_LOAN_REPAYMENTS });
+    expect(r.totals.amountNgn).toBe(3_386_940);
+    expect(r.bookExpenseTotalNgn).toBe(104);
   });
 
   it('first matching rule wins: a refund mentioning a forklift is a refund', () => {

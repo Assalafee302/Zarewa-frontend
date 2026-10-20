@@ -28,11 +28,13 @@
  *   it and the bank-statement line (BKR id) that names the treasury line.
  */
 import { filterExpensesInRange } from './liveAnalytics.js';
-import { isCapexExpenseCategory } from '../shared/expenseCategories.js';
+import { isCapexExpenseCategory, isLoanRepaymentExpenseCategory } from '../shared/expenseCategories.js';
 
 export const BOOK_REFUNDS = 'Refunds (not an expense)';
 export const BOOK_STAFF_LOANS = 'Staff loans (not an expense)';
 export const BOOK_FIXED_ASSET = 'Fixed asset (capital)';
+/** Company loan principal repaid (GL 2600) — money out, not an expense (owner, 19 Oct 2026). */
+export const BOOK_LOAN_REPAYMENTS = 'Loan repayments (not an expense)';
 
 /**
  * ERP categories that are not expenses in the book: lines already coded there (or recategorised there at source,
@@ -42,6 +44,7 @@ export function bookGroupForErpCategory(category) {
   const c = String(category || '').trim();
   if (/^refund/i.test(c)) return BOOK_REFUNDS;
   if (/^staff loan/i.test(c)) return BOOK_STAFF_LOANS;
+  if (isLoanRepaymentExpenseCategory(c)) return BOOK_LOAN_REPAYMENTS;
   if (isCapexExpenseCategory(c)) return BOOK_FIXED_ASSET;
   return c;
 }
@@ -271,7 +274,7 @@ export function buildExpensesReport(input = {}) {
   const carriageKey = [...erp.keys()].find((k) => /^carriage/i.test(k)) || 'Carriage inward';
   book.set(carriageKey, (book.get(carriageKey) || 0) + poTransportNgn - overlapNgn);
   const toList = (m) => [...m.entries()].map(([category, amountNgn]) => ({ category, amountNgn })).sort((a, b) => b.amountNgn - a.amountNgn);
-  const nonExpense = new Set([BOOK_REFUNDS, BOOK_STAFF_LOANS, BOOK_FIXED_ASSET]);
+  const nonExpense = new Set([BOOK_REFUNDS, BOOK_STAFF_LOANS, BOOK_FIXED_ASSET, BOOK_LOAN_REPAYMENTS]);
   const bookList = toList(book);
 
   const reclassifications = EXPENSE_RECLASS_RULES.map((rule) => {
