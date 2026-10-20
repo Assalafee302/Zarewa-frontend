@@ -111,7 +111,6 @@ import {
 import { FinanceTreasuryAwaitingPayoutQueues } from "./FinanceTreasuryAwaitingPayoutQueues";
 import { OrphanHaulageDeskPanel } from "./OrphanHaulageDeskPanel";
 import { AddPayoutAccountModal } from "./AddPayoutAccountModal";
-import { StaffShareBatchPanel } from "./StaffShareBatchPanel";
 import { flattenRefundDeskQueue } from "../../lib/refundCashierDetail";
 import { overdueRefundsHeadline, payoutLineAccountGate } from "../../lib/financePayoutDesk.js";
 import {
@@ -246,10 +245,6 @@ export function FinanceDeskWorkQueues({
   const [roundingBusyId, setRoundingBusyId] = useState("");
   const [deskActionBusyId, setDeskActionBusyId] = useState("");
   const [payoutAccountRequest, setPayoutAccountRequest] = useState(null);
-  /** A7: this week's staff-share batches (GET /api/staff-share-batches). */
-  const [staffBatchData, setStaffBatchData] = useState(null);
-  const [staffBatchNonce, setStaffBatchNonce] = useState(0);
-  const reloadStaffBatches = () => setStaffBatchNonce((n) => n + 1);
 
   const closeRemainderAsRounding = async (kind, id) => {
     const key = `${kind}:${id}`;
@@ -393,17 +388,6 @@ export function FinanceDeskWorkQueues({
     }
   };
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const { ok, data } = await apiFetch("/api/staff-share-batches");
-      if (!cancelled && ok && data?.ok) setStaffBatchData(data);
-    })().catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [ws?.snapshot?.refunds, ws?.branchScope, staffBatchNonce]);
-
   /** A8: last bank-statement import per treasury account, for the bank cards. */
   const [statementByAccountId, setStatementByAccountId] = useState(null);
   useEffect(() => {
@@ -419,18 +403,6 @@ export function FinanceDeskWorkQueues({
       cancelled = true;
     };
   }, [ws?.branchScope]);
-
-  /** A7: refund staff lines paid through the weekly batch, keyed refundId::partyId. */
-  const staffBatchLineKeys = useMemo(
-    () =>
-      new Set(
-        (Array.isArray(staffBatchData?.lines) ? staffBatchData.lines : []).map(
-          (l) => `${l.refundId}::${l.partyId}`
-        )
-      ),
-    [staffBatchData],
-  );
-  const lineInStaffBatch = (line) => staffBatchLineKeys.has(`${line?.refundID}::${line?.partyId}`);
 
   const wsSnapshotTreasuryAccounts = ws?.snapshot?.treasuryAccounts;
 
@@ -1516,17 +1488,10 @@ export function FinanceDeskWorkQueues({
                       >
                         Close as rounding
                       </FinanceDeskQueueActionButton>
-                    ) : lineInStaffBatch(line) ? (
-                      <span
-                        className="inline-flex rounded-full bg-amber-100 px-2 py-1 text-ui-xs font-bold text-amber-950"
-                        title="Staff share under the batch threshold — paid once a week from the staff-share batch."
-                      >
-                        Weekly staff batch
-                      </span>
                     ) : (() => {
                       const gate = payoutLineAccountGate(
                         line,
-                        flattenRefundDeskQueue([line.parentRefund]).filter((s) => !lineInStaffBatch(s))
+                        flattenRefundDeskQueue([line.parentRefund])
                       );
                       // D2: without a bank account the refund can still be paid from the Cash Office.
                       return (
@@ -1720,25 +1685,6 @@ export function FinanceDeskWorkQueues({
                 );
               }}
             >
-              <StaffShareBatchPanel
-                data={staffBatchData}
-                treasuryAccounts={treasuryAccounts}
-                showToast={showToast}
-                onPaid={(res) => {
-                  applyDeskDelta(res);
-                  reloadStaffBatches();
-                }}
-                onAddPayoutAccount={(b) =>
-                  setPayoutAccountRequest({
-                    target: "refund",
-                    refundId: String(b.readyLines[0]?.refundId || b.waitingLines[0]?.refundId || ""),
-                    partyKind: b.partyKind,
-                    partyId: b.partyId,
-                    label: `${b.partyName} (staff-share batch)`,
-                    payeeName: b.payeeName || b.partyName,
-                  })
-                }
-              />
               <OrphanHaulageDeskPanel
                 orphanRows={orphanHaulageRows}
                 canAccessProcurement={Boolean(ws?.canAccessModule?.("procurement"))}
@@ -1752,7 +1698,6 @@ export function FinanceDeskWorkQueues({
               onSaved={(data) => {
                 setPayoutAccountRequest(null);
                 applyDeskDelta(data);
-                reloadStaffBatches();
                 void ws.refreshDomain?.("finance");
                 showToast("Payout account saved. Pay is now available.", { variant: "success" });
               }}

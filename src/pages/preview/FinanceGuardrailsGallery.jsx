@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { WorkspacePreviewProvider } from '../../context/WorkspaceContext';
 import { FinanceDeskWorkQueues } from '../../components/finance/FinanceDeskWorkQueues';
 import { FinanceDeskTreasuryAccountGrid } from '../../components/finance/FinanceDeskTreasuryAccountGrid';
-import { StaffShareBatchPanel } from '../../components/finance/StaffShareBatchPanel';
 import { AddPayoutAccountModal } from '../../components/finance/AddPayoutAccountModal';
 import { receiptDuplicate24hPrompt } from '../../lib/financeManagerOverride.js';
 import { customerOwedCreditLine, customerOwedCreditSummary } from '../../lib/customerOwedCredit.js';
@@ -112,29 +111,6 @@ export default function FinanceGuardrailsGallery() {
     ]);
   }, []);
 
-  const batchData = {
-    ok: true,
-    weekKey: (() => {
-      const d = new Date();
-      d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-      return d.toISOString().slice(0, 10);
-    })(),
-    thresholdNgn: 5000,
-    batches: [
-      {
-        key: 'associated_staff::AS-PV-1', partyKind: 'associated_staff', partyId: 'AS-PV-1', partyName: 'Ali (driver)',
-        payeeBankName: 'Moniepoint', payeeAccountNo: '6012345678',
-        readyLines: [{ refundId: 'RF-PV-8801', owedNgn: 4000 }, { refundId: 'RF-PV-8806', owedNgn: 2500 }],
-        waitingLines: [{ refundId: 'RF-PV-9003', owedNgn: 1800 }], readyNgn: 6500, waitingNgn: 1800, paidThisWeek: null,
-      },
-      {
-        key: 'associated_staff::AS-PV-2', partyKind: 'associated_staff', partyId: 'AS-PV-2', partyName: 'Bala (installer)',
-        payeeBankName: '', payeeAccountNo: '000',
-        readyLines: [{ refundId: 'RF-PV-8810', owedNgn: 3000 }], waitingLines: [], readyNgn: 3000, waitingNgn: 0, paidThisWeek: null,
-      },
-    ],
-  };
-
   const owed = customerOwedCreditSummary({
     sources: [
       { id: 'refund:RF-PV-9002', kind: 'refund', refundId: 'RF-PV-9002', status: 'Approved', availableNgn: 64000 },
@@ -204,10 +180,6 @@ export default function FinanceGuardrailsGallery() {
               Reverse mistaken receipt
             </button>
           </div>
-        </Section>
-
-        <Section id="a7" title="A7 — weekly staff-share batch">
-          <StaffShareBatchPanel data={batchData} treasuryAccounts={ACCOUNTS} />
         </Section>
 
         <Section id="a8" title="A8 — bank cards: statement loaded to">

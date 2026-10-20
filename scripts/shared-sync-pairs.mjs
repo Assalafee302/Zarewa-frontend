@@ -119,7 +119,6 @@ export const SHARED_SYNC_PAIRS = [
   ['shared/lib/bankAbbreviation.js', 'src/shared/lib/bankAbbreviation.js'],
   ['shared/lib/controlsPhase3.js', 'src/shared/lib/controlsPhase3.js'],
   ['shared/lib/payoutAccountGuard.js', 'src/shared/lib/payoutAccountGuard.js'],
-  ['shared/lib/staffShareBatch.js', 'src/shared/lib/staffShareBatch.js'],
   ['shared/lib/bankStatementFreshness.js', 'src/shared/lib/bankStatementFreshness.js'],
   ['shared/lib/overQuotePayout.js', 'src/shared/lib/overQuotePayout.js'],
   ['shared/lib/attentionRules.js', 'src/shared/lib/attentionRules.js'],
