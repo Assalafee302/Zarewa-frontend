@@ -124,6 +124,13 @@ const Sidebar = ({
       visible: hasExecNav && ['md', 'admin'].includes(String(roleKey || '').trim().toLowerCase()),
     },
     {
+      icon: <ShieldCheck size={18} />,
+      label: 'Investigations',
+      path: '/investigations',
+      active: pathMatches(p, '/investigations'),
+      visible: Boolean(ws?.session?.user),
+    },
+    {
       icon: <Landmark size={18} />,
       label: 'Chairman Office',
       path: '/chairman',

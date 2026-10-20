@@ -5,6 +5,7 @@ import {
   customerInitials,
 } from './customerUi';
 import { CustomerPaymentChip, CustomerStatusChip, CustomerTierChip } from './CustomerStatusChip';
+import { UnderInvestigationBadge } from '../investigations/UnderInvestigationBadge';
 
 /**
  * @param {{ customer: object; paymentRelationship: { label: string; tone: string } }} props
@@ -40,6 +41,7 @@ export function CustomerProfileHero({ customer, paymentRelationship }) {
             <CustomerStatusChip status={customer.status} />
             <CustomerTierChip tier={customer.tier} />
             <CustomerPaymentChip label={paymentRelationship.label} tone={paymentRelationship.tone} />
+            <UnderInvestigationBadge kind="customer" id={customer.customerID || customer.customer_id} />
           </div>
 
           <div className="flex flex-wrap gap-2 text-xs text-teal-50/95">

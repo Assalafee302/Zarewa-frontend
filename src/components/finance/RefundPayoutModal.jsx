@@ -22,6 +22,7 @@ import {
   refundPayeePayoutQueueLines,
 } from '../../lib/refundCashierDetail';
 import { RefundFundBalanceStrip } from './RefundFundBalanceStrip.jsx';
+import { UnderInvestigationBadge } from '../investigations/UnderInvestigationBadge';
 import { RefundPayoutSituationPanel } from './RefundPayoutSituationPanel.jsx';
 import { CashOfficePayoutFields } from './CashOfficePayoutFields.jsx';
 
@@ -214,6 +215,7 @@ export function RefundPayoutModal({
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-base font-bold text-slate-900">Refund Payout</h2>
+                  <UnderInvestigationBadge kind="refund" id={rid} />
                   <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-bold text-slate-700">
                     {rid}
                     <CopyButton text={rid} label="Refund ID" />

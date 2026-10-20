@@ -16,6 +16,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { StaffPurchaseCreditQuotationPanel } from './StaffPurchaseCreditQuotationPanel';
+import { UnderInvestigationBadge } from '../investigations/UnderInvestigationBadge';
 import { QuotationComposeSteps } from './QuotationComposeSteps';
 import { ModalFrame } from '../layout/ModalFrame';
 import { ModalDeskFooter, DeskFooterButton } from '../layout/ModalDeskFooter';
@@ -2870,6 +2871,11 @@ const QuotationModal = ({
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2 gap-y-1">
                 <h2 className="text-base font-bold text-zarewa-teal tracking-tight">Quotation</h2>
+                <UnderInvestigationBadge
+                  kind="quotation"
+                  id={editData?.id}
+                  caseId={editData?.investigationCaseId}
+                />
                 <span
                   className={`shrink-0 rounded-md px-2 py-0.5 text-ui-xs font-semibold uppercase tracking-wide ${
                     readOnly

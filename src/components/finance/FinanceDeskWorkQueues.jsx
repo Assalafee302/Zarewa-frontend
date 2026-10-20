@@ -1384,6 +1384,11 @@ export function FinanceDeskWorkQueues({
                           title={
                             <>
                               <span className="font-mono">{r.id}</span>
+                              {caseId ? (
+                                <span className="ml-2 inline-flex rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold uppercase text-white">
+                                  Under investigation: {caseId}
+                                </span>
+                              ) : null}
                               <span className="font-medium text-slate-600">
                                 {" "}
                                 · {r.customer || r.customerID}

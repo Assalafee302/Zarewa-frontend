@@ -88,6 +88,14 @@ const ExecutiveCommandCentre = lazyWithRetry(
   () => import('./pages/exec/ExecutiveCommandCentre.jsx'),
   { id: 'ExecutiveCommandCentre' }
 );
+const InvestigationRegisterPage = lazyWithRetry(
+  () => import('./pages/investigations/InvestigationRegisterPage.jsx'),
+  { id: 'InvestigationRegisterPage' }
+);
+const InvestigationCasePage = lazyWithRetry(
+  () => import('./pages/investigations/InvestigationCasePage.jsx'),
+  { id: 'InvestigationCasePage' }
+);
 const ChairmanOffice = lazyWithRetry(
   () => import('./pages/exec/ChairmanOffice.jsx'),
   { id: 'ChairmanOffice' }
@@ -908,6 +916,8 @@ function AppShell() {
                 </ModuleRouteGuard>
               }
             />
+            <Route path="/investigations" element={<InvestigationRegisterPage />} />
+            <Route path="/investigations/:caseId" element={<InvestigationCasePage />} />
             <Route
               path="/exec"
               element={
