@@ -23,6 +23,7 @@ import {
 } from '../../lib/refundCashierDetail';
 import { RefundFundBalanceStrip } from './RefundFundBalanceStrip.jsx';
 import { RefundPayoutSituationPanel } from './RefundPayoutSituationPanel.jsx';
+import { CashOfficePayoutFields } from './CashOfficePayoutFields.jsx';
 
 function CopyButton({ text, label = 'Copy' }) {
   const [copied, setCopied] = useState(false);
@@ -126,6 +127,8 @@ export function RefundPayoutModal({
   onConfirmPay,
   onLiftHold,
   userMaySetRefundPayoutHold = false,
+  cashOffice = null,
+  onCashOfficeChange,
 }) {
   const [activeTab, setActiveTab] = useState('payment'); // 'payment' | 'breakdown'
 
@@ -538,6 +541,15 @@ export function RefundPayoutModal({
                     </ul>
                   ) : null}
                 </div>
+              ) : null}
+
+              {cashOffice ? (
+                <CashOfficePayoutFields
+                  lines={refundPayLines}
+                  accounts={bankAccountsSelectOrder}
+                  value={cashOffice}
+                  onChange={onCashOfficeChange}
+                />
               ) : null}
 
               {/* Payment Note */}

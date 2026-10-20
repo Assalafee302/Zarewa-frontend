@@ -4,6 +4,7 @@ import { formatNgn } from '../../Data/mockData';
 import { treasuryIntegrityDisplay } from '../../shared/lib/treasuryTillLane.js';
 import { FinanceActionButton } from './FinanceActionButton';
 import { FinanceDeskBalanceBreakdown } from './FinanceDeskBalanceBreakdown';
+import { statementFreshness } from '../../shared/lib/bankStatementFreshness.js';
 import {
   emptyTreasuryDeskBalanceSplit,
   ledgerAccountBalanceNgn,
@@ -31,6 +32,7 @@ export function FinanceDeskTreasuryAccountGrid({
   onAccountClick,
   cardActionLabel = 'Open account',
   nextActionSummary,
+  statementByAccountId = null,
 }) {
   if (!accounts.length) {
     return (
@@ -109,6 +111,18 @@ export function FinanceDeskTreasuryAccountGrid({
                     {acc.bankName}
                   </p>
                 ) : null}
+                {acc.type === 'Bank' && statementByAccountId ? (() => {
+                  // A8: last bank-statement import for this account; red when older than today.
+                  const fresh = statementFreshness(statementByAccountId.get(Number(acc.id)) || null);
+                  return (
+                    <p
+                      className={`text-[10px] font-semibold tabular-nums truncate ${fresh.stale ? 'text-red-600' : 'text-teal-700'}`}
+                      data-testid={`statement-freshness-${acc.id}`}
+                    >
+                      {fresh.label}
+                    </p>
+                  );
+                })() : null}
                 <p className="mt-1 text-sm font-bold tabular-nums text-zarewa-teal tracking-tight">
                   {formatNgn(balance)}
                 </p>

@@ -34,10 +34,11 @@ import {
   isReceiptCleared,
   isReceiptPendingClearance,
   liquidityClearanceSplit,
-  pendingClearanceTotalNgn,
   receiptClearanceBadgeLabel,
+  receiptEffectiveCashNgn,
   receiptRegisteredByLabel,
 } from "../../lib/receiptClearance";
+import { deskPayoutLines, payoutHeadline, receiptHeadlines } from "../../lib/financeDeskHeadlines.js";
 
 import {
   enrichReceiptsWithCuttingListMeta,
@@ -95,6 +96,10 @@ import { paymentRequestOutstandingNgn } from "../../lib/financeTreasuryPayoutQue
 import { FinanceDeskTreasuryAccountGrid } from "./FinanceDeskTreasuryAccountGrid";
 
 import { HangingCustomerRefundChip, RefundFundAppliedChip } from "./HangingCustomerRefundHint";
+import { hangingRefundOpenAmountNgn } from "../../lib/refundsStore";
+import { hangingRefundAttention, receiptAttention } from "../../lib/cashierAttention.js";
+import { AttentionBanner } from "../attention/AttentionBanner";
+import { useSearchParams } from "react-router-dom";
 import { refundFundAppliedByQuotationRef } from "../../lib/refundFundApply.js";
 
 import {
@@ -105,6 +110,10 @@ import {
 
 import { FinanceTreasuryAwaitingPayoutQueues } from "./FinanceTreasuryAwaitingPayoutQueues";
 import { OrphanHaulageDeskPanel } from "./OrphanHaulageDeskPanel";
+import { AddPayoutAccountModal } from "./AddPayoutAccountModal";
+import { StaffShareBatchPanel } from "./StaffShareBatchPanel";
+import { flattenRefundDeskQueue } from "../../lib/refundCashierDetail";
+import { overdueRefundsHeadline, payoutLineAccountGate } from "../../lib/financePayoutDesk.js";
 import {
   findQuotationByRef,
   quotationColourGaugeLabel,
@@ -236,6 +245,11 @@ export function FinanceDeskWorkQueues({
   const { show: showToast } = useToast();
   const [roundingBusyId, setRoundingBusyId] = useState("");
   const [deskActionBusyId, setDeskActionBusyId] = useState("");
+  const [payoutAccountRequest, setPayoutAccountRequest] = useState(null);
+  /** A7: this week's staff-share batches (GET /api/staff-share-batches). */
+  const [staffBatchData, setStaffBatchData] = useState(null);
+  const [staffBatchNonce, setStaffBatchNonce] = useState(0);
+  const reloadStaffBatches = () => setStaffBatchNonce((n) => n + 1);
 
   const closeRemainderAsRounding = async (kind, id) => {
     const key = `${kind}:${id}`;
@@ -378,6 +392,45 @@ export function FinanceDeskWorkQueues({
       setDeskActionBusyId("");
     }
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { ok, data } = await apiFetch("/api/staff-share-batches");
+      if (!cancelled && ok && data?.ok) setStaffBatchData(data);
+    })().catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [ws?.snapshot?.refunds, ws?.branchScope, staffBatchNonce]);
+
+  /** A8: last bank-statement import per treasury account, for the bank cards. */
+  const [statementByAccountId, setStatementByAccountId] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { ok, data } = await apiFetch("/api/treasury/statement-freshness");
+      if (cancelled || !ok || !data?.ok) return;
+      setStatementByAccountId(
+        new Map((Array.isArray(data.accounts) ? data.accounts : []).map((a) => [Number(a.treasuryAccountId), a]))
+      );
+    })().catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [ws?.branchScope]);
+
+  /** A7: refund staff lines paid through the weekly batch, keyed refundId::partyId. */
+  const staffBatchLineKeys = useMemo(
+    () =>
+      new Set(
+        (Array.isArray(staffBatchData?.lines) ? staffBatchData.lines : []).map(
+          (l) => `${l.refundId}::${l.partyId}`
+        )
+      ),
+    [staffBatchData],
+  );
+  const lineInStaffBatch = (line) => staffBatchLineKeys.has(`${line?.refundID}::${line?.partyId}`);
 
   const wsSnapshotTreasuryAccounts = ws?.snapshot?.treasuryAccounts;
 
@@ -547,6 +600,29 @@ export function FinanceDeskWorkQueues({
     [receiptsWithCuttingMeta],
   );
 
+  // Deep link `?attention=<rule>:<receipt id>` opens the desk on that receipt with its problem stated.
+  const [searchParams] = useSearchParams();
+  const focusAttentionId = String(searchParams.get("attention") || "").trim();
+  const focusedReceipt = useMemo(() => {
+    if (!focusAttentionId) return null;
+    const cut = focusAttentionId.indexOf(":");
+    const ruleId = cut > 0 ? focusAttentionId.slice(0, cut) : "";
+    const rid = cut > 0 ? focusAttentionId.slice(cut + 1) : "";
+    const list =
+      ruleId === "receipt_no_bank_line"
+        ? bankCheckReceiptsAll
+        : ruleId === "receipt_under_investigation"
+          ? investigationReceiptsAll
+          : [];
+    const r = list.find((x) => String(x.id) === rid);
+    return r ? { receipt: r, attention: receiptAttention(r, ruleId) } : null;
+  }, [focusAttentionId, bankCheckReceiptsAll, investigationReceiptsAll]);
+  useEffect(() => {
+    if (!focusedReceipt) return;
+    const el = document.querySelector(`[data-attention-id="${CSS.escape(focusAttentionId)}"]`);
+    el?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+  }, [focusedReceipt, focusAttentionId]);
+
   const pendingReceiptsAll = useMemo(
     () =>
       sortQueueOldestFirst(
@@ -556,6 +632,22 @@ export function FinanceDeskWorkQueues({
         { priority: receiptLacksCuttingList }
       ),
     [receiptsWithCuttingMeta],
+  );
+
+  /** A3: suspended / under-investigation receipts — their own headline, never in the pending total. */
+  const heldReceiptsAll = useMemo(
+    () => receiptsWithCuttingMeta.filter((r) => isReceiptPendingClearance(r) && receiptHeldForInvestigation(r)),
+    [receiptsWithCuttingMeta],
+  );
+
+  const receiptHeads = useMemo(
+    () =>
+      receiptHeadlines({
+        pending: pendingReceiptsAll,
+        held: heldReceiptsAll,
+        amountOf: (r) => receiptEffectiveCashNgn(r),
+      }),
+    [pendingReceiptsAll, heldReceiptsAll],
   );
 
   const deskQuery = String(searchQuery || "").trim();
@@ -801,12 +893,33 @@ export function FinanceDeskWorkQueues({
     [treasuryAccounts, receipts, tillTruth, bookTotalNgn],
   );
 
-  const payoutQueueCount =
-    approvedPaymentsAll.length +
-    approvedRefundsAll.length +
-    approvedRegisterSettlementsAll.length +
-    poTransportAwaitingAll.length +
-    partnerWalletsDue.length;
+  /** A3: one payout list (a line per refund payee, expense, withdrawal, haulage PO) for every payout headline. */
+  const refundPayeeLinesAll = useMemo(
+    () =>
+      flattenRefundDeskQueue(approvedRefundsAll, {
+        actor: ws?.session?.user,
+        hasPermission: ws?.hasPermission,
+      }),
+    [approvedRefundsAll, ws?.session?.user, ws?.hasPermission],
+  );
+
+  const payoutHead = useMemo(
+    () =>
+      payoutHeadline(
+        deskPayoutLines({
+          refundLines: refundPayeeLinesAll,
+          paymentRequests: approvedPaymentsAll,
+          registerSettlements: approvedRegisterSettlementsAll,
+          haulage: poTransportAwaitingAll,
+        })
+      ),
+    [refundPayeeLinesAll, approvedPaymentsAll, approvedRegisterSettlementsAll, poTransportAwaitingAll],
+  );
+
+  const payoutQueueCount = payoutHead.openCount + partnerWalletsDue.length;
+
+  /** A4: refunds approved more than 7 days ago with cash still to pay. */
+  const overdueRefunds = useMemo(() => overdueRefundsHeadline(refundPayeeLinesAll), [refundPayeeLinesAll]);
 
   const moneyInQueueCount =
     pendingReceiptsAll.length +
@@ -875,8 +988,8 @@ export function FinanceDeskWorkQueues({
         <FinanceDeskTillStrip
           tillTruth={tillTruth}
           bookTotalNgn={liquidity.bookTotalNgn}
-          pendingReceipts={pendingReceiptsAll.length}
-          pendingReceiptsNgn={pendingClearanceTotalNgn(receipts)}
+          pendingReceipts={receiptHeads.pending.count}
+          pendingReceiptsNgn={receiptHeads.pending.ngn}
           payouts={payoutQueueCount}
           confirmedToday={trialData?.confirmedReceipts?.today ?? confirmedTodayCount}
           onCloseDay={() => onGoToTab?.('audit')}
@@ -892,6 +1005,7 @@ export function FinanceDeskWorkQueues({
           onAccountClick={onAccountClick}
           cardActionLabel={onAccountClick ? 'View statement' : undefined}
           nextActionSummary={nextActionSummary}
+          statementByAccountId={statementByAccountId}
         />
       ) : null}
 
@@ -927,27 +1041,45 @@ export function FinanceDeskWorkQueues({
         <>
           {!isCashier ? (
           <section className="space-y-3">
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5" data-testid="finance-desk-headlines">
               <FinanceKpiCard
                 compact
                 label="Pending receipts"
-                value={pendingReceiptsAll.length}
-                hint={formatNgn(pendingClearanceTotalNgn(receipts))}
+                value={receiptHeads.pending.count}
+                hint={formatNgn(receiptHeads.pending.ngn)}
                 tone="amber"
                 icon={<Banknote size={14} />}
               />
 
               <FinanceKpiCard
                 compact
+                label="Suspended / under investigation"
+                value={receiptHeads.held.count}
+                hint={receiptHeads.held.count ? formatNgn(receiptHeads.held.ngn) : "None held"}
+                tone={receiptHeads.held.count > 0 ? "rose" : "default"}
+                icon={<Banknote size={14} />}
+              />
+
+              <FinanceKpiCard
+                compact
                 label="Payouts to post"
-                value={payoutQueueCount}
+                value={payoutHead.openCount}
                 hint={
-                  payoutQueueCount
-                    ? "Expenses, refunds, withdrawals, haulage"
+                  payoutHead.openCount
+                    ? `${formatNgn(payoutHead.openNgn)} · Ready ${payoutHead.readyCount}`
                     : "None queued"
                 }
-                tone={payoutQueueCount > 0 ? "amber" : "default"}
+                tone={payoutHead.openCount > 0 ? "amber" : "default"}
                 icon={<ClipboardList size={14} />}
+              />
+
+              <FinanceKpiCard
+                compact
+                label="Overdue refunds"
+                value={overdueRefunds.count}
+                hint={overdueRefunds.count ? `${formatNgn(overdueRefunds.ngn)} · approved over 7 days ago` : "None over 7 days"}
+                tone={overdueRefunds.count > 0 ? "rose" : "default"}
+                icon={<RotateCcw size={14} />}
               />
 
               <FinanceKpiCard
@@ -1160,7 +1292,14 @@ export function FinanceDeskWorkQueues({
                             >
                               {cuttingChipLabel}
                             </span>
-                            {hanging ? <HangingCustomerRefundChip indicator={hanging} /> : null}
+                            {hanging ? (
+                              <HangingCustomerRefundChip
+                                indicator={hanging}
+                                sentence={
+                                  hangingRefundAttention(hanging, r.customer || r.customerID, hangingRefundOpenAmountNgn)?.sentence || ''
+                                }
+                              />
+                            ) : null}
                             {refundFund ? <RefundFundAppliedChip appliedNgn={refundFund.appliedNgn} /> : null}
                           </div>
                         }
@@ -1204,6 +1343,16 @@ export function FinanceDeskWorkQueues({
                 </p>
               )}
 
+              {focusedReceipt ? (
+                <AttentionBanner
+                  attention={focusedReceipt.attention}
+                  hideActions={["ask_cashier"]}
+                  onAction={(a) => {
+                    if (a.id === "open") onViewReceipt?.(focusedReceipt.receipt);
+                  }}
+                />
+              ) : null}
+
               {bankCheckReceiptsAll.length > 0 ? (
                 <FinanceDeskColoredQueuePanel
                   theme="slate"
@@ -1217,6 +1366,8 @@ export function FinanceDeskWorkQueues({
                       <FinanceDeskColoredQueueRow
                         key={r.id}
                         theme="slate"
+                        attentionId={`receipt_no_bank_line:${r.id}`}
+                        highlighted={focusAttentionId === `receipt_no_bank_line:${r.id}`}
                         title={
                           <>
                             <span className="font-mono">{r.id}</span>
@@ -1226,7 +1377,7 @@ export function FinanceDeskWorkQueues({
                             </span>
                           </>
                         }
-                        meta={String(r.status || "No bank receipt")}
+                        meta={receiptAttention(r, "receipt_no_bank_line").sentence}
                         amount={formatNgn(r.amountNgn)}
                         actions={
                           onViewReceipt ? (
@@ -1256,6 +1407,8 @@ export function FinanceDeskWorkQueues({
                         <FinanceDeskColoredQueueRow
                           key={r.id}
                           theme="slate"
+                          attentionId={`receipt_under_investigation:${r.id}`}
+                          highlighted={focusAttentionId === `receipt_under_investigation:${r.id}`}
                           title={
                             <>
                               <span className="font-mono">{r.id}</span>
@@ -1265,7 +1418,7 @@ export function FinanceDeskWorkQueues({
                               </span>
                             </>
                           }
-                          meta={caseId ? caseId : "Suspended"}
+                          meta={receiptAttention(r, "receipt_under_investigation").sentence || caseId}
                           amount={formatNgn(r.amountNgn)}
                           actions={
                             onViewReceipt ? (
@@ -1343,6 +1496,7 @@ export function FinanceDeskWorkQueues({
               paymentRequests={approvedPayments}
               registerSettlements={approvedRegisterSettlements}
               poTransport={poTransportAwaiting}
+              headline={payoutHead}
               poTransportPanelAction={
                 onViewPoTransport ? (
                   <FinanceActionButton variant="link" onClick={() => onGoToTab("movements")}>
@@ -1362,14 +1516,53 @@ export function FinanceDeskWorkQueues({
                       >
                         Close as rounding
                       </FinanceDeskQueueActionButton>
-                    ) : (
-                      <FinanceDeskQueueActionButton
-                        tone="sky"
-                        onClick={() => onPayRefund(String(line.refundID || ''), line.queueKey)}
+                    ) : lineInStaffBatch(line) ? (
+                      <span
+                        className="inline-flex rounded-full bg-amber-100 px-2 py-1 text-ui-xs font-bold text-amber-950"
+                        title="Staff share under the batch threshold — paid once a week from the staff-share batch."
                       >
-                        Pay
-                      </FinanceDeskQueueActionButton>
-                    )
+                        Weekly staff batch
+                      </span>
+                    ) : (() => {
+                      const gate = payoutLineAccountGate(
+                        line,
+                        flattenRefundDeskQueue([line.parentRefund]).filter((s) => !lineInStaffBatch(s))
+                      );
+                      // D2: without a bank account the refund can still be paid from the Cash Office.
+                      return (
+                        <>
+                          {gate.missing ? (
+                            <FinanceDeskQueueActionButton
+                              tone="violet"
+                              title={gate.problem}
+                              onClick={() =>
+                                setPayoutAccountRequest({
+                                  target: "refund",
+                                  refundId: String(line.refundID || ""),
+                                  partyKind: line.recipientKind === "associated_staff" ? "associated_staff" : "customer",
+                                  partyId: String(line.partyId || ""),
+                                  label: `${line.recipientLabel || "Payee"} on ${line.refundID}`,
+                                  payeeName: line.payeeName,
+                                })
+                              }
+                            >
+                              Add payout account
+                            </FinanceDeskQueueActionButton>
+                          ) : null}
+                          <FinanceDeskQueueActionButton
+                            tone="sky"
+                            title={
+                              gate.missing || gate.blockedBy
+                                ? `No bank account for ${gate.missing ? line.recipientLabel || "this payee" : gate.blockedBy} — pay from the Cash Office (name + voucher), or add the account to pay by bank.`
+                                : undefined
+                            }
+                            onClick={() => onPayRefund(String(line.refundID || ''), line.queueKey)}
+                          >
+                            {gate.missing || gate.blockedBy ? "Pay cash" : "Pay"}
+                          </FinanceDeskQueueActionButton>
+                        </>
+                      );
+                    })()
                   ) : null}
                   {onViewRefund ? (
                     <FinanceDeskQueueActionButton
@@ -1402,6 +1595,30 @@ export function FinanceDeskWorkQueues({
                     >
                       Close as rounding
                     </FinanceDeskQueueActionButton>
+                  ) : payoutLineAccountGate(req).missing ? (
+                    <>
+                      <FinanceDeskQueueActionButton
+                        tone="violet"
+                        title={payoutLineAccountGate(req).problem}
+                        onClick={() =>
+                          setPayoutAccountRequest({
+                            target: "payment_request",
+                            requestId: String(req.requestID || req.id || ""),
+                            label: `${req.payeeName || "Payee"} on ${req.requestID || req.id}`,
+                            payeeName: req.payeeName,
+                          })
+                        }
+                      >
+                        Add payout account
+                      </FinanceDeskQueueActionButton>
+                      <FinanceDeskQueueActionButton
+                        tone="teal"
+                        title="No bank account — pay from the Cash Office (name + voucher), or add the account to pay by bank."
+                        onClick={() => onPayRequest(String(req.requestID || req.id || ""))}
+                      >
+                        Pay cash
+                      </FinanceDeskQueueActionButton>
+                    </>
                   ) : (
                     <FinanceDeskQueueActionButton
                       tone="teal"
@@ -1447,6 +1664,22 @@ export function FinanceDeskWorkQueues({
                     >
                       On hold
                     </span>
+                  ) : payoutLineAccountGate(row).missing ? (
+                    <FinanceDeskQueueActionButton
+                      tone="violet"
+                      title={payoutLineAccountGate(row).problem}
+                      onClick={() =>
+                        setPayoutAccountRequest({
+                          target: "transport_agent",
+                          transportAgentId: String(row.transportAgentId || ""),
+                          poId,
+                          label: `Haulier ${row.transportAgentName || ""} on ${poId}`.trim(),
+                          payeeName: row.payeeName || row.transportAgentName,
+                        })
+                      }
+                    >
+                      Add payout account
+                    </FinanceDeskQueueActionButton>
                   ) : (
                     <FinanceDeskQueueActionButton tone="sky" onClick={() => onPayPoTransport(row)}>
                       Pay
@@ -1487,6 +1720,25 @@ export function FinanceDeskWorkQueues({
                 );
               }}
             >
+              <StaffShareBatchPanel
+                data={staffBatchData}
+                treasuryAccounts={treasuryAccounts}
+                showToast={showToast}
+                onPaid={(res) => {
+                  applyDeskDelta(res);
+                  reloadStaffBatches();
+                }}
+                onAddPayoutAccount={(b) =>
+                  setPayoutAccountRequest({
+                    target: "refund",
+                    refundId: String(b.readyLines[0]?.refundId || b.waitingLines[0]?.refundId || ""),
+                    partyKind: b.partyKind,
+                    partyId: b.partyId,
+                    label: `${b.partyName} (staff-share batch)`,
+                    payeeName: b.payeeName || b.partyName,
+                  })
+                }
+              />
               <OrphanHaulageDeskPanel
                 orphanRows={orphanHaulageRows}
                 canAccessProcurement={Boolean(ws?.canAccessModule?.("procurement"))}
@@ -1494,6 +1746,17 @@ export function FinanceDeskWorkQueues({
                 onLinkAsHaulage={linkRequestAsHaulage}
               />
             </FinanceTreasuryAwaitingPayoutQueues>
+            <AddPayoutAccountModal
+              request={payoutAccountRequest}
+              onClose={() => setPayoutAccountRequest(null)}
+              onSaved={(data) => {
+                setPayoutAccountRequest(null);
+                applyDeskDelta(data);
+                reloadStaffBatches();
+                void ws.refreshDomain?.("finance");
+                showToast("Payout account saved. Pay is now available.", { variant: "success" });
+              }}
+            />
           </div>
 
           <CashierSecondaryServicesPanel

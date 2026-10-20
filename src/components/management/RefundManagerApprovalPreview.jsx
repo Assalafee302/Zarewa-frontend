@@ -1734,7 +1734,7 @@ export function RefundManagerApprovalPreview({
         ) : null}
 
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(7rem,9rem)_1fr_auto_auto] sm:items-end">
-          <div>
+          <div data-attention-field="amount">
             <label className="text-ui-xs font-bold uppercase text-slate-500" htmlFor="inbox-approved-amount">
               {creditAppliedNgn > 0 ? 'Approve leftover ₦' : 'Approved ₦'}
             </label>
@@ -1772,6 +1772,7 @@ export function RefundManagerApprovalPreview({
           <button
             type="button"
             disabled={decisionBusy || loading}
+            data-attention-action="reject"
             onClick={handleRejectClick}
             className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-rose-600 px-4 text-ui-xs font-black uppercase tracking-wide text-white hover:bg-rose-500 disabled:opacity-50"
           >
@@ -1788,6 +1789,7 @@ export function RefundManagerApprovalPreview({
               (creditAppliedNgn > 0 && leftoverAfterCreditNgn <= 0) ||
               (mdDiscountRequiresMd && !actorMayApproveMdDiscount)
             }
+            data-attention-action="approve"
             onClick={handleApproveClick}
             className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-emerald-600 px-4 text-ui-xs font-black uppercase tracking-wide text-white hover:bg-emerald-500 disabled:opacity-50"
           >

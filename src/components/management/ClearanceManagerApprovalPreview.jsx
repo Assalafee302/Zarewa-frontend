@@ -17,13 +17,8 @@ import {
   DecisionBand,
   DecisionChip,
 } from './DecisionSurface';
+import { percentPaid } from '../../lib/quotePaidPercent';
 
-function percentPaid(paid, total) {
-  const p = Math.round(Number(paid) || 0);
-  const t = Math.round(Number(total) || 0);
-  if (t <= 0) return p > 0 ? 100 : 0;
-  return Math.min(100, Math.round((p / t) * 100));
-}
 
 /**
  * Clearance / flagged / production-gate review — lean case strip + quote/money/ops.
@@ -106,11 +101,21 @@ export function ClearanceManagerApprovalPreview({
         subtitle={formatPersonName(inboxRow?.customer_name || '—')}
         aside={
           <>
-            <p className="text-ui-xs font-bold uppercase text-slate-400">Paid</p>
-            <p className="text-xl font-black tabular-nums text-emerald-800">{formatNgn(paidNgn)}</p>
-            <p className="text-ui-xs text-slate-500">
-              of {formatNgn(totalNgn)} · <strong>{pct}%</strong>
-            </p>
+            <div data-attention-field="paid">
+              <p className="text-ui-xs font-bold uppercase text-slate-400">Paid</p>
+              <p className="text-xl font-black tabular-nums text-emerald-800">{formatNgn(paidNgn)}</p>
+              <p className="text-ui-xs text-slate-500">
+                of {formatNgn(totalNgn)} ·{' '}
+                <strong className={overpaidNgn > 0 ? 'text-rose-700' : undefined} data-testid="clearance-pct-paid">
+                  {pct}%
+                </strong>
+              </p>
+              {overpaidNgn > 0 ? (
+                <p className="text-ui-xs font-bold tabular-nums text-rose-700" data-testid="clearance-overpaid">
+                  Overpaid {formatNgn(overpaidNgn)}
+                </p>
+              ) : null}
+            </div>
           </>
         }
         meta={
@@ -264,6 +269,7 @@ export function ClearanceManagerApprovalPreview({
                 icon={RotateCcw}
                 label="Reject"
                 disabled={decisionBusy}
+                attentionAction="reject"
                 onClick={onDisapprove}
               />
               <DecisionActionTile
@@ -271,6 +277,7 @@ export function ClearanceManagerApprovalPreview({
                 icon={Flag}
                 label="Flag"
                 disabled={decisionBusy}
+                attentionAction="flag"
                 onClick={onFlag}
               />
               <DecisionActionTile
@@ -278,6 +285,7 @@ export function ClearanceManagerApprovalPreview({
                 icon={CheckCircle2}
                 label={reviewContext === 'clearance' ? 'Clear' : 'Approve'}
                 disabled={decisionBusy}
+                attentionAction="clear"
                 onClick={onApprove}
               />
             </div>
@@ -293,6 +301,7 @@ export function ClearanceManagerApprovalPreview({
               icon={Zap}
               label="Production override (low payment)"
               disabled={decisionBusy}
+              attentionAction="override"
               onClick={onProductionOverride}
               className="mt-1"
             />

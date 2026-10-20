@@ -10,6 +10,8 @@ import {
   receiptDateLabel,
 } from '../../lib/quotationColourGauge.js';
 import { splitSearchHighlight } from '../../shared/lib/workspaceSearchCore.js';
+import { hangingRefundOpenAmountNgn } from '../../lib/refundsStore';
+import { hangingRefundAttention } from '../../lib/cashierAttention.js';
 
 const TH =
   'px-1.5 py-1 text-left text-[10px] font-bold uppercase tracking-wide text-slate-500 whitespace-nowrap';
@@ -272,9 +274,13 @@ export function FinanceReceiptsClearanceTable({
                         {hanging ? (
                           <span
                             className="inline-flex shrink-0 items-center gap-0.5 text-[9px] font-bold uppercase text-rose-800"
-                            title={hanging.shortLabel || 'Hanging refund'}
+                            title={
+                              hangingRefundAttention(hanging, r.customer || r.customerID, hangingRefundOpenAmountNgn)
+                                ?.sentence || hanging.shortLabel || 'Hanging refund'
+                            }
                           >
                             <AlertTriangle size={10} className="shrink-0" aria-hidden />
+                            {hanging.count > 0 ? 'Open refund ' : 'Unused credit '}
                             {formatNgn(hanging.totalOpenNgn || hanging.overpayCreditNgn || 0)}
                           </span>
                         ) : null}

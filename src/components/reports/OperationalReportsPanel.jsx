@@ -2,6 +2,20 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { apiFetch, apiUrl } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
+import { explainAttentionItem } from '../../shared/lib/attentionRules.js';
+
+/** Approved-but-unpaid refund row → the shared `refund_unpaid` sentence (same words as everywhere else). */
+function refundUnpaidSentence(r) {
+  return explainAttentionItem({
+    id: `refund_unpaid:${r.refund_id}`,
+    ruleId: 'refund_unpaid',
+    facts: {
+      amountNgn: Number(r.approved_amount_ngn ?? r.amount_ngn) || 0,
+      atIso: r.approval_date || '',
+      approvedBy: r.approved_by || '',
+    },
+  }).sentence;
+}
 
 async function downloadGovernancePackCsv() {
   const r = await fetch(apiUrl('/api/reports/governance-pack?format=csv'), { credentials: 'include' });
@@ -160,8 +174,14 @@ export function OperationalReportsPanel() {
               body: (r) => (
                 <>
                   <span className="font-mono font-bold">{r.refund_id}</span>
-                  <span className="ml-2">{formatNgn(r.approved_amount_ngn ?? r.amount_ngn)}</span>
-                  <p className="text-slate-500">Approved by {r.approved_by || '—'}</p>
+                  <p className="font-semibold text-slate-800" data-testid="refund-unpaid-sentence">
+                    {refundUnpaidSentence(r)}
+                  </p>
+                  <p className="text-slate-500">
+                    {[r.customer_name, r.quotation_ref, r.approved_by ? `approved by ${r.approved_by}` : '']
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
                 </>
               ),
             }}

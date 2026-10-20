@@ -1,4 +1,5 @@
 /* eslint-disable react-refresh/only-export-components -- context + hook */
+import { askOverQuoteReason } from '../lib/financeManagerOverride.js';
 import React, {
   createContext,
   useCallback,
@@ -573,10 +574,19 @@ export function InventoryProvider({ children }) {
             'Cannot post transport payment while the workspace is read-only. Reconnect to the server, then try again.',
         };
       }
-      const { ok, data } = await apiFetch(`/api/purchase-orders/${encodeURIComponent(poID)}/post-transport`, {
+      let { ok, data } = await apiFetch(`/api/purchase-orders/${encodeURIComponent(poID)}/post-transport`, {
         method: 'POST',
         body: JSON.stringify(body),
       });
+      if (!ok && data?.code === 'PAYOUT_ABOVE_QUOTE') {
+        // A5: above the quoted fee — BM/OM approves the excess with a reason.
+        const answer = askOverQuoteReason(data, ws?.session?.user?.roleKey);
+        if (answer.error) return { ok: false, error: answer.error };
+        ({ ok, data } = await apiFetch(`/api/purchase-orders/${encodeURIComponent(poID)}/post-transport`, {
+          method: 'POST',
+          body: JSON.stringify({ ...body, overQuoteReason: answer.reason }),
+        }));
+      }
       if (!ok || !data?.ok) {
         return { ok: false, error: data?.error || 'Could not post transport.' };
       }
@@ -595,20 +605,26 @@ export function InventoryProvider({ children }) {
       const amt = Number(amountNgn);
       if (Number.isNaN(amt) || amt <= 0) return { ok: false, error: 'Invalid amount.' };
       if (wsCanMutate) {
-        const { ok, data } = await apiFetch(
-          `/api/purchase-orders/${encodeURIComponent(poID)}/supplier-payment`,
-          {
+        const supplierBody = {
+          amountNgn: amt,
+          note,
+          treasuryAccountId: opts.treasuryAccountId,
+          reference: opts.reference,
+          dateISO: opts.dateISO,
+          createdBy: opts.createdBy,
+        };
+        const postSupplier = (body) =>
+          apiFetch(`/api/purchase-orders/${encodeURIComponent(poID)}/supplier-payment`, {
             method: 'POST',
-            body: JSON.stringify({
-              amountNgn: amt,
-              note,
-              treasuryAccountId: opts.treasuryAccountId,
-              reference: opts.reference,
-              dateISO: opts.dateISO,
-              createdBy: opts.createdBy,
-            }),
-          }
-        );
+            body: JSON.stringify(body),
+          });
+        let { ok, data } = await postSupplier(supplierBody);
+        if (!ok && data?.code === 'PAYOUT_ABOVE_QUOTE') {
+          // A5: above the PO value — BM/OM approves the excess with a reason.
+          const answer = askOverQuoteReason(data, ws?.session?.user?.roleKey);
+          if (answer.error) return { ok: false, error: answer.error };
+          ({ ok, data } = await postSupplier({ ...supplierBody, overQuoteReason: answer.reason }));
+        }
         if (!ok || !data?.ok) {
           return { ok: false, error: data?.error || 'Could not record payment.' };
         }

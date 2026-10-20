@@ -55,6 +55,7 @@ export function EditApprovalDetailModal({
   onClose,
   onDecisionComplete,
   canApprove = false,
+  banner = null,
 }) {
   const { show: showToast } = useToast();
   const [approval, setApproval] = useState(null);
@@ -185,6 +186,7 @@ export function EditApprovalDetailModal({
         ) : (
           <>
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 min-h-0">
+              {banner}
             <section className="rounded-xl border border-teal-200/80 bg-teal-50/40 px-4 py-3">
               <p className="text-ui-xs font-black uppercase tracking-widest text-zarewa-teal">What will be edited</p>
               {changeSummary ? (

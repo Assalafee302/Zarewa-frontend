@@ -118,6 +118,7 @@ import {
 import { RefundEligibilitySummary } from '../refund/RefundEligibilitySummary';
 import { RefundGlImpactPreview } from '../refund/RefundGlImpactPreview';
 import { RefundCreatePolicyWarnings } from '../refund/RefundCreatePolicyWarnings';
+import { DualControlAckPanel } from '../attention/DualControlAckPanel';
 
 const REFUND_CATEGORY_HINTS = {
   'Unproduced meterage':
@@ -4709,6 +4710,9 @@ const RefundModal = ({
           ) : null}
           {(mode === 'view' || mode === 'approve') && record?.refundID ? (
             <RefundApplyToQuotationPanel refund={record} />
+          ) : null}
+          {(mode === 'view' || mode === 'approve') && record?.refundID ? (
+            <DualControlAckPanel refundId={record.refundID} />
           ) : null}
           {refundGuideOpen && !showApprovalReview ? (
             <div

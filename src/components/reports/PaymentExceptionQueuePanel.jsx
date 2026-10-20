@@ -1,6 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Download } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
+import { explainAttentionItem } from '../../shared/lib/attentionRules.js';
+
+/** Row sentence from the shared rule (falls back to the stored issue for rows built elsewhere). */
+function exceptionSentence(row) {
+  if (!row?.ruleId) return row?.issue || '';
+  return explainAttentionItem({ id: row.key, ruleId: row.ruleId, facts: row.facts || {} }).sentence || row.issue || '';
+}
 
 function downloadExceptionCsv(rows, filename) {
   const headers = [
@@ -126,7 +133,7 @@ export function PaymentExceptionQueuePanel({
                   </p>
                   <p className="text-xs font-bold text-rose-800">{formatNgn(Math.abs(Number(row.deltaNgn) || 0))}</p>
                 </div>
-                <p className="text-xs text-slate-700 mt-1">{row.issue}</p>
+                <p className="text-xs text-slate-700 mt-1">{exceptionSentence(row)}</p>
                 <p className="text-xs text-slate-500 mt-1">
                   {row.customer || '—'}
                   {row.quotationRef ? ` · ${row.quotationRef}` : ''} · Severity {row.severity}
