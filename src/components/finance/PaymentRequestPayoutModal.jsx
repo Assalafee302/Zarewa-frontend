@@ -69,6 +69,8 @@ export function PaymentRequestPayoutModal({
   cancelPayRequestBusyId = '',
   onCancelPaymentRequest,
   onConfirmPay,
+  cashOffice = null,
+  onCashOfficeChange,
 }) {
   const [activeTab, setActiveTab] = useState('disbursement'); // 'disbursement' | 'details'
 
@@ -403,6 +405,15 @@ export function PaymentRequestPayoutModal({
                       </div>
                     ))}
                   </div>
+
+                  {!isPoTransport && cashOffice ? (
+                    <CashOfficePayoutFields
+                      lines={requestPayLines}
+                      accounts={bankAccounts}
+                      value={cashOffice}
+                      onChange={onCashOfficeChange}
+                    />
+                  ) : null}
 
                   {/* Payment Note */}
                   <div className="space-y-1">

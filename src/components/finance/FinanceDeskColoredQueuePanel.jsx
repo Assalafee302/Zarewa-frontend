@@ -138,14 +138,20 @@ export function FinanceDeskColoredQueueRow({
   meta,
   extra,
   amount,
+  amountLabel = '',
   actions,
   testId,
+  attentionId,
+  highlighted = false,
 }) {
   const t = THEMES[theme] || THEMES.teal;
   return (
     <li
       data-testid={testId}
-      className={`rounded-lg border bg-white py-1.5 px-2.5 shadow-sm ${t.row}`}
+      data-attention-id={attentionId || undefined}
+      className={`rounded-lg border bg-white py-1.5 px-2.5 shadow-sm ${t.row} ${
+        highlighted ? 'ring-2 ring-rose-400 ring-offset-1' : ''
+      }`}
     >
       <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
         <div className="min-w-0 leading-tight flex-1">
@@ -161,7 +167,14 @@ export function FinanceDeskColoredQueueRow({
           {extra}
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
-          <span className="text-xs font-black text-zarewa-teal tabular-nums">{amount}</span>
+          {amountLabel ? (
+            <span className="flex flex-col items-end leading-tight">
+              <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{amountLabel}</span>
+              <span className="text-base font-black text-zarewa-teal tabular-nums">{amount}</span>
+            </span>
+          ) : (
+            <span className="text-xs font-black text-zarewa-teal tabular-nums">{amount}</span>
+          )}
           <div className="flex flex-wrap items-center justify-end gap-1">{actions}</div>
         </div>
       </div>

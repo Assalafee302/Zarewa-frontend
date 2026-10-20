@@ -1,3 +1,5 @@
+import { payoutAccountIsMissing, payoutAccountProblem } from '../shared/lib/payoutAccountGuard.js';
+
 /**
  * Cashier and desk payout queues: filter, sort, and aging.
  * Amounts stay on the row; this module only orders and summarises them.
@@ -171,4 +173,62 @@ export function nextPayoutSort(prevKey, prevDir, key) {
   }
   const dir = key === 'payee' || key === 'type' ? 'asc' : 'desc';
   return { key, dir };
+}
+
+/**
+ * Finance Phase A (A1): a desk payout line can be paid only when its payee has a bank and a
+ * 10-digit account. A refund is paid as one request, so a payee with a missing account on the
+ * same refund also blocks the other payees' Pay buttons.
+ * @param {{ payeeBankName?: string, payeeAccountNo?: string }} line
+ * @param {Array<{ payeeBankName?: string, payeeAccountNo?: string, recipientLabel?: string, queueKey?: string }>} [siblings]
+ * @returns {{ missing: boolean, problem: string, blockedBy: string }}
+ */
+export function payoutLineAccountGate(line, siblings = []) {
+  const problem = payoutAccountProblem({ bankName: line?.payeeBankName, accountNo: line?.payeeAccountNo });
+  if (problem) return { missing: true, problem, blockedBy: '' };
+  const other = (siblings || []).find(
+    (s) =>
+      s &&
+      s.queueKey !== line?.queueKey &&
+      (Number(s.amountDueNgn) || 0) > 0 &&
+      payoutAccountIsMissing({ bankName: s.payeeBankName, accountNo: s.payeeAccountNo })
+  );
+  return { missing: false, problem: '', blockedBy: other ? String(other.recipientLabel || other.payeeName || 'Another payee') : '' };
+}
+
+/** A4: refund queue age from the approval day. >7 days amber, >30 days red. */
+export const REFUND_OVERDUE_DAYS = 7;
+export const REFUND_LATE_DAYS = 30;
+
+export function refundApprovedDayISO(refund) {
+  return String(refund?.approvedAtISO || refund?.approvalDate || refund?.approval_date || refund?.dateISO || '').slice(0, 10);
+}
+
+/** @returns {{ days: number | null, tone: 'none' | 'amber' | 'red' }} */
+export function refundQueueAge(refund, today = new Date()) {
+  const days = payoutAgeDays(refundApprovedDayISO(refund), today);
+  if (days == null) return { days: null, tone: 'none' };
+  if (days > REFUND_LATE_DAYS) return { days, tone: 'red' };
+  if (days > REFUND_OVERDUE_DAYS) return { days, tone: 'amber' };
+  return { days, tone: 'none' };
+}
+
+/**
+ * A4 desk tile: refunds approved more than 7 days ago that still have cash to pay.
+ * Counts refunds (not payee lines) and sums what is left to pay on those same refunds.
+ * @param {Array<{ refundID: string, amountDueNgn?: number, parentRefund?: object }>} refundLines
+ */
+export function overdueRefundsHeadline(refundLines = [], today = new Date()) {
+  const byRefund = new Map();
+  for (const line of refundLines || []) {
+    const due = Math.max(0, Math.round(Number(line?.amountDueNgn) || 0));
+    if (due <= 0) continue;
+    const age = refundQueueAge(line?.parentRefund || line, today);
+    if (age.days == null || age.days <= REFUND_OVERDUE_DAYS) continue;
+    const id = String(line?.refundID || '');
+    byRefund.set(id, (byRefund.get(id) || 0) + due);
+  }
+  let ngn = 0;
+  for (const v of byRefund.values()) ngn += v;
+  return { count: byRefund.size, ngn };
 }

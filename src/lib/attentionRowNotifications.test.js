@@ -50,4 +50,25 @@ describe('attentionRowNotifications', () => {
     expect(items[0].title).toContain('Q2');
     expect(items[0].path).toContain('quoteRef=Q2');
   });
+
+  it('bell detail is the shared sentence; MD/CEO get the exec link, BM the manager link', () => {
+    const row = {
+      id: 'refund:RF-7',
+      kind: 'refunds',
+      refundId: 'RF-7',
+      title: 'RF-7',
+      subtitle: 'Ade · Overpayment',
+      atIso: '2026-10-16',
+      row: { amount_ngn: 52_000, customer_name: 'Ade', reason_category: 'Overpayment' },
+    };
+    const md = [];
+    pushAttentionRowAlerts(md, { managementAttention: { items: [row] }, roleKey: 'md' });
+    expect(md[0].detail).toMatch(/^Refund ₦52,000 to Ade \(Overpayment\) requested 16 Oct is waiting for approval/);
+    expect(md[0].path).toBe('/exec?tab=decide&attention=refund%3ARF-7');
+
+    const bm = [];
+    pushAttentionRowAlerts(bm, { managementAttention: { items: [row] }, roleKey: 'sales_manager' });
+    expect(bm[0].path).toBe('/manager?inbox=cash_out&refundId=RF-7&attention=refund%3ARF-7');
+    expect(bm[0].detail).toBe(md[0].detail);
+  });
 });

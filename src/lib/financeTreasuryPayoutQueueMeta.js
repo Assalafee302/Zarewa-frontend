@@ -135,3 +135,32 @@ export function poTransportPayoutMetaLine(row, branchNameById = {}) {
 }
 
 export { refundOutstandingAmount, registerSettlementOutstandingNgn };
+
+/**
+ * A4: short meta for the refund queue card. Net / Gross / Aprv / Paid / Cut live behind View;
+ * the card keeps who, which quote, when approved, and any hold that changes what the cashier does.
+ */
+export function refundQueueCardMeta(refund, payeeLine, branchNameById = {}) {
+  const role = payeeLine?.recipientKind === 'associated_staff' ? 'Staff split' : 'Customer';
+  const approved = formatPayoutQueueDate(refund?.approvalDate || refund?.approvedAtISO);
+  const branchId = String(refund?.branchId || '').trim();
+  const hold =
+    payeeLine?.payoutStatus === 'held_uncleared'
+      ? 'Held — clear uncleared receipts, or use as cashier referral on a receipt'
+      : payeeLine?.payoutStatus === 'till_due_partial_held'
+        ? `${formatNgn(payeeLine.unclearedWithheldNgn)} held for uncleared receipts, rest payable now`
+        : payeeLine?.payoutStatus === 'referral_available'
+          ? 'Pending: use on Confirm payment (do not till-pay the same ₦)'
+          : payeeLine?.payoutStatus === 'needs_review'
+            ? 'Shows paid with no till payout — View refund'
+            : null;
+  return [
+    role,
+    refund?.quotationRef ? `Quote ${refund.quotationRef}` : 'No quote ref',
+    approved ? `Approved ${approved}` : null,
+    hold,
+    branchId ? branchNameById[branchId] || branchId : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}

@@ -14,9 +14,22 @@ function headlineAmountNgn(info) {
  * Compact chip for receipt / desk tables — display only, no auto-apply.
  * @param {{ hanging?: object[] | null; overpayCreditNgn?: number; indicator?: ReturnType<typeof hangingRefundIndicator>; className?: string }} props
  */
-export function HangingCustomerRefundChip({ hanging, overpayCreditNgn = 0, indicator, className = '' }) {
+export function HangingCustomerRefundChip({ hanging, overpayCreditNgn = 0, indicator, sentence = '', className = '' }) {
   const info = indicator || hangingRefundIndicator(hanging, overpayCreditNgn);
   if (!info) return null;
+  if (sentence) {
+    return (
+      <span
+        className={`inline-flex items-start gap-1 rounded-md bg-rose-50 px-1.5 py-0.5 text-ui-xs font-semibold leading-snug text-rose-900 ${className}`}
+        title={info.detailLabel}
+        role="status"
+        data-testid="hanging-refund-sentence"
+      >
+        <AlertTriangle size={11} className="mt-0.5 shrink-0" aria-hidden />
+        {sentence}
+      </span>
+    );
+  }
   const title = [
     info.count > 0
       ? 'Same customer has leftover refund open elsewhere.'

@@ -186,11 +186,18 @@ export function DecisionActionTile({
   onClick,
   className = '',
   type = 'button',
+  attentionAction,
 }) {
   const cls = TILE[variant] || TILE.approve;
   const isBrand = variant === 'brand' || variant === 'secondary' || variant === 'compactApprove' || variant === 'compactReject';
   return (
-    <button type={type} disabled={disabled} onClick={onClick} className={`${cls} ${className}`}>
+    <button
+      type={type}
+      disabled={disabled}
+      onClick={onClick}
+      data-attention-action={attentionAction || undefined}
+      className={`${cls} ${className}`}
+    >
       {Icon ? <Icon size={isBrand && variant.startsWith('compact') ? 14 : 18} /> : null}
       <span className={isBrand && !variant.startsWith('compact') ? undefined : 'text-ui-xs font-black uppercase tracking-widest'}>
         {label}

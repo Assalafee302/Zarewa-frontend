@@ -1645,6 +1645,15 @@ export function paymentReconciliationExceptionQueue(
         quotationRef: row.quotationRef || '',
         deltaNgn: Number(row.deltaNgn) || 0,
         issue: row.issue || 'Receipt/treasury mismatch',
+        ruleId: 'receipt_treasury_mismatch',
+        facts: {
+          refId: row.ledgerEntryId || row.treasuryMovementId || row.sourceId || '',
+          customer: row.customerName || '',
+          quotationRef: row.quotationRef || '',
+          issue: row.issue || 'Receipt/treasury mismatch',
+          deltaNgn: Number(row.deltaNgn) || 0,
+          atIso: row.atISO || row.postedAtISO || '',
+        },
       };
     }
   );
@@ -1662,6 +1671,15 @@ export function paymentReconciliationExceptionQueue(
       quotationRef: row.quotationID || '',
       deltaNgn: Number(row.deltaNgn) || 0,
       issue: 'Quotation paid amount differs from receipts + applied advance',
+      ruleId: 'quotation_paid_mismatch',
+      facts: {
+        quotationRef: row.quotationID || '',
+        paidOnQuoteNgn: Number(row.paidNgnOnQuote) || 0,
+        expectedPaidNgn: Number(row.expectedPaidNgn) || 0,
+        receiptsNgn: Number(row.receiptPaidNgn) || 0,
+        creditAppliedNgn: Number(row.advanceAppliedNgn) || 0,
+        atIso: row.dateISO || '',
+      },
     };
   });
   return [...receiptRows, ...arRows].sort((a, b) => {

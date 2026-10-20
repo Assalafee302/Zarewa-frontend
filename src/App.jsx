@@ -20,6 +20,12 @@ const AppDesk = lazyWithRetry(() => import('./AppDesk.jsx'), { id: 'AppDesk' });
 const CoilUxGallery = import.meta.env.DEV
   ? lazyWithRetry(() => import('./pages/preview/CoilUxGallery.jsx'), { id: 'CoilUxGallery' })
   : null;
+const FinanceGuardrailsGallery = import.meta.env.DEV
+  ? lazyWithRetry(() => import('./pages/preview/FinanceGuardrailsGallery.jsx'), { id: 'FinanceGuardrailsGallery' })
+  : null;
+const AttentionGallery = import.meta.env.DEV
+  ? lazyWithRetry(() => import('./pages/preview/AttentionGallery.jsx'), { id: 'AttentionGallery' })
+  : null;
 
 /** Typical shell wait after sign-in; bar eases toward this, not the hard abort. */
 function bootExpectedMs() {
@@ -225,6 +231,26 @@ function App() {
                     element={
                       <Suspense fallback={<BootScreen light title="Opening preview…" />}>
                         <CoilUxGallery />
+                      </Suspense>
+                    }
+                  />
+                ) : null}
+                {FinanceGuardrailsGallery ? (
+                  <Route
+                    path="/preview/finance-guardrails"
+                    element={
+                      <Suspense fallback={<BootScreen light title="Opening preview…" />}>
+                        <FinanceGuardrailsGallery />
+                      </Suspense>
+                    }
+                  />
+                ) : null}
+                {AttentionGallery ? (
+                  <Route
+                    path="/preview/attention"
+                    element={
+                      <Suspense fallback={<BootScreen light title="Opening preview…" />}>
+                        <AttentionGallery />
                       </Suspense>
                     }
                   />
