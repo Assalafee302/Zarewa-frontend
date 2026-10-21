@@ -257,7 +257,12 @@ export default function CoilDamageApprovalPanel() {
                 {r.productionJobId ? (
                   <span className="block text-slate-500">Job: {r.productionJobId}</span>
                 ) : null}
-                {r.quotationRef ? <span className="block text-slate-500">QT: {r.quotationRef}</span> : null}
+                {r.quotationRef ? (
+                  <span className="block text-slate-500">
+                    QT: {r.quotationRef}
+                    {r.customerLabel || r.customerName ? ` · ${r.customerLabel || r.customerName}` : ''}
+                  </span>
+                ) : null}
               </p>
             )}
 

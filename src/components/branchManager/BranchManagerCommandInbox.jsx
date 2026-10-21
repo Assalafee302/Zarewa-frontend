@@ -21,6 +21,8 @@ import { FinanceSequencePanel } from '../layout';
 import { AttentionFromDateNote } from '../attention/AttentionFromDateNote';
 import { formatStockRegisterMonth } from '../../lib/stockRegisterPeriod';
 import {
+  approvalListCustomerName,
+  approvalOrderRowDetail,
   managerKindShortLabel,
   managerKindTone,
   normalizeAttentionFilter,
@@ -376,14 +378,29 @@ export function BranchManagerCommandInbox(props) {
         <KindPill label="prod check" tone="pending" />
         <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
           <span className="font-mono font-bold text-zarewa-teal">{row.job_id}</span>
-          {' · '}
-          {row.quotation_ref || row.customer_name || 'Close production check'}
+          {row.quotation_ref ? (
+            <>
+              {' · '}
+              <span className="font-mono font-bold text-slate-700">{row.quotation_ref}</span>
+            </>
+          ) : null}
+          {row.customer_name ? (
+            <>
+              {' · '}
+              {asPersonName(row.customer_name)}
+            </>
+          ) : !row.quotation_ref ? (
+            <>
+              {' · '}
+              Close production check
+            </>
+          ) : null}
         </span>
         <SlaChip kind="conversions" row={row} />
         <ChevronRight size={14} className="shrink-0 text-slate-300" />
       </button>
     ),
-    [openAttentionItem, selectedIntel]
+    [asPersonName, openAttentionItem, selectedIntel]
   );
 
   const renderMaterialRow = useCallback(
@@ -443,7 +460,7 @@ export function BranchManagerCommandInbox(props) {
         <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800" title={rowAttention(row)?.sentence || ''}>
           <span className="font-mono font-bold text-zarewa-teal">{row.title || row.id}</span>
           {' · '}
-          {rowAttention(row)?.sentence || row.subtitle || 'Requires management review'}
+          {approvalOrderRowDetail(row, rowAttention(row)) || row.subtitle || 'Requires management review'}
         </span>
         {row.amountNgn != null ? <span className="shrink-0 text-ui-xs font-bold tabular-nums text-rose-700">{asMoney(row.amountNgn)}</span> : null}
         <SlaChip kind="governance" row={row} />
@@ -469,6 +486,12 @@ export function BranchManagerCommandInbox(props) {
             <span className="font-semibold">{e.entityKind || 'record'}</span>
             {' · '}
             <span className="font-mono font-bold text-zarewa-teal">{e.entityId || '—'}</span>
+            {approvalListCustomerName(e) ? (
+              <>
+                {' · '}
+                <span className="font-semibold text-slate-800">{asPersonName(approvalListCustomerName(e))}</span>
+              </>
+            ) : null}
             {' · '}
             <span className="text-slate-500">{asPersonName(e.requestedByDisplay || e.requestedByUserId || e.requestedBy)}</span>
           </span>
@@ -501,6 +524,12 @@ export function BranchManagerCommandInbox(props) {
               </>
             ) : null}
             {e.entityKind || 'record'} · <span className="font-mono">{e.entityId || '—'}</span>
+            {approvalListCustomerName(e) ? (
+              <>
+                {' · '}
+                {asPersonName(approvalListCustomerName(e))}
+              </>
+            ) : null}
             {' · '}
             {asPersonName(e.requestedByDisplay || e.requestedByUserId || e.requestedBy || '—')}
           </span>
@@ -527,7 +556,7 @@ export function BranchManagerCommandInbox(props) {
         <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800" title={attention?.sentence || ''}>
           <span className="font-mono font-bold text-zarewa-teal">{it.title}</span>
           {' · '}
-          {attention?.sentence || it.subtitle}
+          {approvalOrderRowDetail(it, attention) || it.subtitle}
         </span>
         {it.amountNgn != null ? (
           <span className="shrink-0 text-ui-xs font-bold tabular-nums text-slate-700">{asMoney(it.amountNgn)}</span>

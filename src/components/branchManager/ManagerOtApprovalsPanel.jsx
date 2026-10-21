@@ -115,6 +115,7 @@ export function ManagerOtApprovalsPanel({ branchId = '', onQueueChange }) {
                     </div>
                     <p className="text-ui-xs text-slate-600">
                       {row.dayIso} · {row.workType} · {row.createdByName || 'Store'}
+                      {row.customerName || row.customer_name ? ` · ${row.customerName || row.customer_name}` : ''}
                       {row.quotationRef ? ` · ${row.quotationRef}` : ''}
                       {row.poId ? ` · ${row.poId}` : ''}
                     </p>

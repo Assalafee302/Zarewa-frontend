@@ -350,6 +350,96 @@ export function filterAttentionItems(items, filterKey) {
   return list.filter((it) => attentionKindMatchesFilter(it?.kind, filterKey));
 }
 
+function stripLeadingRef(sentence, ref) {
+  const s = String(sentence || '').trim();
+  const r = String(ref || '').trim();
+  if (!s || !r) return s;
+  let out = s;
+  if (out.startsWith(`${r}:`)) out = out.slice(r.length + 1).trim();
+  else if (out.startsWith(`${r} `)) out = out.slice(r.length).trim();
+  for (const token of [` for ${r}`, ` on ${r}`]) {
+    const at = out.indexOf(token);
+    if (at >= 0) out = `${out.slice(0, at)}${out.slice(at + token.length)}`.replace(/\s{2,}/g, ' ').trim();
+  }
+  return out.trim();
+}
+
+function firstFilled(sources, keys) {
+  for (const src of sources) {
+    if (!src || typeof src !== 'object') continue;
+    for (const key of keys) {
+      const v = String(src[key] ?? '').trim();
+      if (v) return v;
+    }
+  }
+  return '';
+}
+
+/**
+ * Customer (or staff, for staff-purchase credit) on an approval row.
+ * The attention sentence replaces the subtitle, so lists must read the name from the row.
+ * @param {object} item
+ */
+export function approvalListCustomerName(item) {
+  const kind = String(item?.kind || item?._inboxKind || '').trim().toLowerCase();
+  const row = item?.row && typeof item.row === 'object' ? item.row : {};
+  const sources = [row, item];
+  if (kind === 'staff_purchase_credit') {
+    return firstFilled(sources, ['staffDisplayName', 'staff_display_name']);
+  }
+  const direct = firstFilled(sources, [
+    'customer_name',
+    'customerName',
+    'customer',
+    'partyName',
+    'party_name',
+  ]);
+  if (direct) return direct;
+  if (kind === 'clearance' || kind === 'price_exception') return String(item?.subtitle || '').trim();
+  if (kind === 'production' || kind === 'conversions' || kind === 'refunds' || kind === 'governance') {
+    const head = String(item?.subtitle || '').split('·')[0].trim();
+    if (!head || head.length > 80) return '';
+    if (/^(cl[-\s]|job |refund |no |assign |completed )/i.test(head)) return '';
+    return head;
+  }
+  return '';
+}
+
+/**
+ * Line beside the quotation (or refund / job) number on every approval list:
+ * customer once, then the attention sentence without repeating that number.
+ * @param {object} item
+ * @param {{ sentence?: string } | null | undefined} attention
+ */
+export function approvalOrderRowDetail(item, attention) {
+  const title = String(item?.title || '').trim();
+  const quote = String(
+    item?.quotationRef || item?.row?.quotation_ref || item?.row?.quotationRef || item?.quotation_ref || ''
+  ).trim();
+  const customer = approvalListCustomerName(item);
+  let sentence = String(attention?.sentence || '').trim();
+  for (const ref of [quote, title]) sentence = stripLeadingRef(sentence, ref);
+  const refs = new Set([title, quote].filter(Boolean));
+  const parts = [];
+  if (customer && !refs.has(customer) && !sentence.toLowerCase().includes(customer.toLowerCase())) {
+    parts.push(customer);
+  }
+  if (sentence && sentence !== customer && !refs.has(sentence)) parts.push(sentence);
+  if (!sentence) {
+    const sub = String(item?.subtitle || '').trim();
+    const rest =
+      customer && sub.toLowerCase().startsWith(customer.toLowerCase())
+        ? sub.slice(customer.length).replace(/^\s*·\s*/, '').trim()
+        : sub;
+    if (rest && rest !== customer && !refs.has(rest)) parts.push(rest);
+  }
+  if (parts.length === 0) {
+    const sub = String(item?.subtitle || '').trim();
+    if (sub && !refs.has(sub)) parts.push(sub);
+  }
+  return parts.join(' · ');
+}
+
 /**
  * @param {{ pendingClearance?: object[]; productionOverrides?: object[]; flagged?: object[]; pendingPriceExceptions?: object[] }} displayItems
  */

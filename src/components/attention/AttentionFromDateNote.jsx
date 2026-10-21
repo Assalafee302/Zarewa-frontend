@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { attentionFromDateLine } from '../../shared/lib/attentionFromDate.js';
+import { approvalOrderRowDetail } from '../../lib/managerDashboardCore';
 
 function money(formatNgn, amount) {
   if (amount == null || amount === '' || !Number.isFinite(Number(amount))) return '';
@@ -96,7 +97,9 @@ export function AttentionFromDateNote({
                 <span className="font-mono font-bold text-slate-800">{it.title || it.id}</span>
                 {it.recordDateIso || it.atIso ? <span> · {String(it.recordDateIso || it.atIso).slice(0, 10)}</span> : null}
                 {money(formatNgn, it.amountNgn) ? <span> · {money(formatNgn, it.amountNgn)}</span> : null}
-                <span className="mt-0.5 block text-slate-700">{it.attention?.sentence || it.subtitle || ''}</span>
+                <span className="mt-0.5 block text-slate-700">
+                  {approvalOrderRowDetail(it, it.attention) || it.subtitle || ''}
+                </span>
               </li>
             ))}
           </ul>

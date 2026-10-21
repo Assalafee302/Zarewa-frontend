@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
+  approvalListCustomerName,
+  approvalOrderRowDetail,
   buildCashOutInboxRows,
   buildOrdersInboxRows,
   buildProcurementInboxRows,
@@ -14,6 +16,53 @@ import {
 } from './managerDashboardCore';
 
 describe('managerDashboardCore', () => {
+  it('shows the customer once on an order row and does not repeat the quotation number', () => {
+    const detail = approvalOrderRowDetail(
+      {
+        kind: 'clearance',
+        title: 'QT-1522',
+        quotationRef: 'QT-1522',
+        subtitle: 'Alhaji Musa',
+        row: { id: 'QT-1522', customer_name: 'Alhaji Musa' },
+      },
+      { sentence: 'QT-1522: ₦50,000 paid of ₦100,000 (50%) and not yet cleared by a manager' }
+    );
+    expect(detail).toBe('Alhaji Musa · ₦50,000 paid of ₦100,000 (50%) and not yet cleared by a manager');
+    expect(detail.includes('QT-1522')).toBe(false);
+  });
+
+  it('puts the customer on every approval list, and does not repeat a name the sentence already has', () => {
+    const conversion = approvalOrderRowDetail(
+      {
+        kind: 'conversions',
+        title: 'PRO-1',
+        quotationRef: 'QT-9',
+        row: { job_id: 'PRO-1', quotation_ref: 'QT-9', customer_name: 'Grace Bature' },
+      },
+      { sentence: 'Job PRO-1 (QT-9) made 12 m — conversion HIGH, not signed off' }
+    );
+    expect(conversion.startsWith('Grace Bature · ')).toBe(true);
+    expect(conversion.includes('QT-9')).toBe(true);
+
+    const refund = approvalOrderRowDetail(
+      {
+        kind: 'refunds',
+        title: 'RF-1',
+        quotationRef: 'QT-9',
+        row: { customer_name: 'Tahir Musa', quotation_ref: 'QT-9' },
+      },
+      { sentence: 'Refund ₦10,000 to Tahir Musa (Overpayment) is waiting for approval' }
+    );
+    expect(refund).toBe('Refund ₦10,000 to Tahir Musa (Overpayment) is waiting for approval');
+    expect(approvalListCustomerName({ kind: 'refunds', row: { customer_name: 'Tahir Musa' } })).toBe('Tahir Musa');
+
+    const expense = approvalOrderRowDetail(
+      { kind: 'payments', title: 'PR-1', row: { description: 'Diesel' } },
+      { sentence: 'Payment request ₦20,000 for Diesel is waiting for approval' }
+    );
+    expect(expense).toBe('Payment request ₦20,000 for Diesel is waiting for approval');
+  });
+
   it('formats refund reason category arrays and strings', () => {
     expect(formatRefundReasonCategory('["Overpayment","Short delivery"]')).toBe('Overpayment, Short delivery');
     expect(formatRefundReasonCategory('Policy')).toBe('Policy');

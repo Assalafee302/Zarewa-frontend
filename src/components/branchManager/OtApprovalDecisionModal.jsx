@@ -161,7 +161,9 @@ export function OtApprovalDecisionModal({
                 tone="production"
                 eyebrow="OT pay · pending BM"
                 title={req.id}
-                subtitle={`${req.dayIso || '—'} · ${req.workType || '—'} · ${req.createdByName || 'Store'}`}
+                subtitle={[req.dayIso || '—', req.workType || '—', req.customerName || req.customer_name, req.createdByName || 'Store']
+                  .filter(Boolean)
+                  .join(' · ')}
                 meta={
                   <>
                     <OtStatusChip status={req.status} />

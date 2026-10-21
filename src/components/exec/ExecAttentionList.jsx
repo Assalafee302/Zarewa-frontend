@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { summarizeAttention } from '../../shared/lib/attentionRules.js';
+import { approvalListCustomerName } from '../../lib/managerDashboardCore';
 import { AttentionFromDateNote } from '../attention/AttentionFromDateNote.jsx';
 
 const DOT = {
@@ -35,7 +36,9 @@ function AttentionRow({ row, onOpen, formatNgn }) {
   const more = attention.flags.slice(1);
   // Show the record reference (RF-…, QT-…) when the sentence does not already name it; skip descriptive titles.
   const ref = /\d/.test(String(item.title || '')) && !attention.sentence.includes(item.title) ? item.title : '';
-  const meta = [item.branchName, ref]
+  const customer = approvalListCustomerName(item);
+  const showCustomer = customer && !String(attention.sentence || '').toLowerCase().includes(customer.toLowerCase());
+  const meta = [item.branchName, ref, showCustomer ? customer : '']
     .filter(Boolean)
     .join(' · ');
   return (
